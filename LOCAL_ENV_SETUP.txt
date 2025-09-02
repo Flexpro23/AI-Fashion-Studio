@@ -1,0 +1,30 @@
+# 🔥 CREATE .env.local FILE - COPY EXACTLY AS SHOWN
+
+# Create a file named .env.local in your project root and paste this content:
+
+# 🔥 Firebase Configuration (CORRECT CREDENTIALS)
+NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyDJ0Ut9HLme5UJsh06Nj3GE-RHa1oCGZ6U
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=ai-fashion-studio-demo.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=ai-fashion-studio-demo
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=ai-fashion-studio-demo.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=1057549888211
+NEXT_PUBLIC_FIREBASE_APP_ID=1:1057549888211:web:2005ca2aaa8f324f4f0226
+
+# 🔐 Security Variables
+NEXTAUTH_SECRET=ai-fashion-studio-super-secure-secret-key-2024-production
+NEXTAUTH_URL=http://localhost:3000
+
+# 🌍 Environment
+NODE_ENV=development
+
+# 📝 INSTRUCTIONS:
+# 1. Create .env.local file in project root
+# 2. Copy and paste the above content exactly
+# 3. Save the file
+# 4. Run: npm run dev
+# 5. Test signup on localhost:3000
+
+# ⚠️ IMPORTANT:
+# - This file is in .gitignore (don't commit it)
+# - These are your CORRECT Firebase credentials
+# - The API key and App ID were wrong before

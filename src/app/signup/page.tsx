@@ -30,15 +30,17 @@ export default function SignUpPage() {
     setLoading(true);
     setError('');
 
-    // Debug environment variables (remove in production)
-    console.log('🔍 Environment Variables Check:', {
-      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? '✅ Set' : '❌ Missing',
-      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? '✅ Set' : '❌ Missing',
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? '✅ Set' : '❌ Missing',
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? '✅ Set' : '❌ Missing',
-      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ? '✅ Set' : '❌ Missing',
-      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ? '✅ Set' : '❌ Missing',
-    });
+    // Debug environment variables in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Environment Variables Check:', {
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? '✅ Set' : '❌ Missing',
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? '✅ Set' : '❌ Missing',
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? '✅ Set' : '❌ Missing',
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? '✅ Set' : '❌ Missing',
+        messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ? '✅ Set' : '❌ Missing',
+        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ? '✅ Set' : '❌ Missing',
+      });
+    }
 
     // Validate form
     if (!formData.name || !formData.email || !formData.phone || !formData.password || !formData.confirmPassword) {
@@ -109,7 +111,7 @@ export default function SignUpPage() {
         
         switch (errorCode) {
           case 'auth/requests-to-this-api-identitytoolkit-method-google.cloud.identitytoolkit.v1.authenticationservice.signup-are-blocked':
-            setError('🚨 Account creation is temporarily disabled. Please contact support at +962790685302 for assistance.');
+            setError('🚨 Firebase Authentication Error: Email/Password signup is disabled in Firebase Console. Please enable it in Authentication → Sign-in method → Email/Password. If you need assistance, contact support at +962790685302.');
             break;
           case 'auth/email-already-in-use':
             setError('This email is already registered. Please try logging in instead.');
@@ -121,13 +123,19 @@ export default function SignUpPage() {
             setError('Invalid email address. Please check and try again.');
             break;
           case 'auth/operation-not-allowed':
-            setError('Email/password accounts are not enabled. Please contact support.');
+            setError('🚨 Email/password authentication is not enabled in Firebase Console. Administrator must enable it in Authentication → Sign-in method → Email/Password.');
             break;
           case 'auth/too-many-requests':
             setError('Too many attempts. Please wait a moment and try again.');
             break;
+          case 'auth/network-request-failed':
+            setError('Network error. Please check your internet connection and try again.');
+            break;
+          case 'auth/app-not-authorized':
+            setError('🚨 App not authorized. The domain may not be added to Firebase authorized domains.');
+            break;
           default:
-            setError(`Authentication error: ${error.message}`);
+            setError(`Authentication error: ${error.message}. Please contact support if this persists.`);
         }
       } else {
         setError('Failed to create account. Please try again or contact support.');
