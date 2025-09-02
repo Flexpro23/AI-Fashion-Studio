@@ -91,7 +91,37 @@ export default function SignUpPage() {
       
     } catch (error: unknown) {
       console.error('Signup error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to create account. Please try again.');
+      
+      // Handle specific Firebase auth errors
+      if (error instanceof Error) {
+        const errorCode = (error as { code?: string }).code;
+        console.error('Firebase error code:', errorCode);
+        
+        switch (errorCode) {
+          case 'auth/requests-to-this-api-identitytoolkit-method-google.cloud.identitytoolkit.v1.authenticationservice.signup-are-blocked':
+            setError('🚨 Account creation is temporarily disabled. Please contact support at +962790685302 for assistance.');
+            break;
+          case 'auth/email-already-in-use':
+            setError('This email is already registered. Please try logging in instead.');
+            break;
+          case 'auth/weak-password':
+            setError('Password is too weak. Please use at least 6 characters.');
+            break;
+          case 'auth/invalid-email':
+            setError('Invalid email address. Please check and try again.');
+            break;
+          case 'auth/operation-not-allowed':
+            setError('Email/password accounts are not enabled. Please contact support.');
+            break;
+          case 'auth/too-many-requests':
+            setError('Too many attempts. Please wait a moment and try again.');
+            break;
+          default:
+            setError(`Authentication error: ${error.message}`);
+        }
+      } else {
+        setError('Failed to create account. Please try again or contact support.');
+      }
     } finally {
       setLoading(false);
     }
@@ -201,7 +231,18 @@ export default function SignUpPage() {
             {/* Error Message */}
             {error && (
               <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-center">
-                {error}
+                <p>{error}</p>
+                {error.includes('contact support') && (
+                  <button
+                    onClick={() => window.open('tel:+962790685302', '_self')}
+                    className="mt-3 w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    <span>Call Support: +962790685302</span>
+                  </button>
+                )}
               </div>
             )}
 

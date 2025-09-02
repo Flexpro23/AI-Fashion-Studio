@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from '@/contexts/AuthContext';
 import Navigation from '@/components/Navigation';
 import BottomNavigation from '@/components/BottomNavigation';
+import FirebaseStatusDebug from '@/components/FirebaseStatus';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +38,7 @@ export default function RootLayout({
             {children}
           </main>
           <BottomNavigation />
+          <FirebaseStatusDebug />
         </AuthProvider>
       </body>
     </html>
