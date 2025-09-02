@@ -85,13 +85,14 @@ export default function LookbookPage() {
         {generations.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 image-grid">
             {generations.map((generation) => (
-              <ImageCard
-                key={generation.id}
-                imageUrl={generation.outputImageUrl}
-                createdAt={generation.createdAt}
-                method={generation.method}
-                model={generation.model}
-              />
+                                <ImageCard
+                    key={generation.id}
+                    id={generation.id}
+                    imageUrl={generation.outputImageUrl}
+                    createdAt={generation.createdAt}
+                    method={generation.method}
+                    model={generation.model}
+                  />
             ))}
           </div>
         ) : (

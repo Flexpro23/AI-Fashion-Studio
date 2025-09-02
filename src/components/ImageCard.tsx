@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import ImageDetailModal from './ImageDetailModal';
+import { useRouter } from 'next/navigation';
 
 interface ImageCardProps {
+  id: string;
   imageUrl: string;
   createdAt: Date;
   method: string;
@@ -11,13 +12,14 @@ interface ImageCardProps {
 }
 
 export default function ImageCard({ 
+  id,
   imageUrl, 
   createdAt, 
   method: _method,
   model: _model
 }: ImageCardProps) {
   const [showOverlay, setShowOverlay] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  const router = useRouter();
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -31,7 +33,7 @@ export default function ImageCard({
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `fashion-shot-${Date.now()}.jpg`;
+        a.download = `ai-fashion-${id}.jpg`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -41,7 +43,7 @@ export default function ImageCard({
         const link = document.createElement('a');
         link.href = imageUrl;
         link.target = '_blank';
-        link.download = `fashion-shot-${Date.now()}.jpg`;
+        link.download = `ai-fashion-${id}.jpg`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -81,13 +83,12 @@ export default function ImageCard({
 
 
   return (
-    <>
-      <div 
-        className="relative cursor-pointer group card overflow-hidden"
-        onMouseEnter={() => setShowOverlay(true)}
-        onMouseLeave={() => setShowOverlay(false)}
-        onClick={() => setShowModal(true)}
-      >
+    <div 
+      className="relative cursor-pointer group card overflow-hidden"
+      onMouseEnter={() => setShowOverlay(true)}
+      onMouseLeave={() => setShowOverlay(false)}
+      onClick={() => router.push(`/image/${id}`)}
+    >
       <img
         src={imageUrl}
         alt="Generated fashion shot"
@@ -151,16 +152,5 @@ export default function ImageCard({
         </svg>
       </div>
     </div>
-
-    {/* Image Detail Modal */}
-    <ImageDetailModal
-      isOpen={showModal}
-      onClose={() => setShowModal(false)}
-      imageUrl={imageUrl}
-      createdAt={createdAt}
-      method={_method}
-      model={_model}
-    />
-  </>
   );
 }

@@ -232,12 +232,10 @@ exports.generateImage = functions.https.onCall(async (data, context) => {
           // Create a record in Firestore
           await db.collection('generations').add({
             userId,
-            modelImageUrl: modelImageUrl || 'base64-provided',
             garmentImageUrl: garmentImageUrl || 'base64-provided',
             outputImageUrl: publicUrl,
             createdAt: new Date(),
-            method: 'vertex-ai-gemini-2.0',
-            model: 'gemini-2.0-flash-preview-image-generation'
+            method: 'vertex-ai-gemini-2.0'
           });
 
           return {
@@ -405,12 +403,10 @@ exports.generateImageV2 = functions.https.onCall(async (data, context) => {
             // Save to Firestore
             await db.collection('generations').add({
               userId,
-              modelImageUrl,
               garmentImageUrl,
               outputImageUrl: publicUrl,
               createdAt: new Date(),
-              method: 'gemini-2.5-simple',
-              model: 'gemini-2.5-flash-image-preview'
+              method: 'gemini-2.5-simple'
             });
 
             return {
@@ -478,12 +474,10 @@ exports.generateImageV2 = functions.https.onCall(async (data, context) => {
 
             await db.collection('generations').add({
               userId,
-              modelImageUrl,
               garmentImageUrl,
               outputImageUrl: publicUrl,
               createdAt: new Date(),
-              method: 'gemini-2.5-simple',
-              model: 'gemini-2.5-flash-image-preview'
+              method: 'gemini-2.5-simple'
             });
 
             return {

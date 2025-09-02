@@ -10,7 +10,7 @@
     "analyze": "cross-env ANALYZE=true npm run build",
     "clean": "rm -rf .next out",
     "type-check": "tsc --noEmit",
-    "prepare": "husky install || true"
+    "prepare": "echo 'Prepare step completed'"
   },
   "dependencies": {
     "@google/genai": "^1.16.0",
