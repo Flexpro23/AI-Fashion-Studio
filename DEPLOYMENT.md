@@ -100,22 +100,23 @@ npm run type-check
 
 ### Issue 3: Storage CORS Issues
 
-**Problem**: Image uploads failing due to CORS
+**Problem**: Image access blocked by CORS policy
 **Solution**: Configure Firebase Storage CORS:
 ```bash
+# Install Google Cloud SDK first if not installed
+# https://cloud.google.com/sdk/docs/install
+
+# Authenticate with Google Cloud
+gcloud auth login
+
+# Set the project
+gcloud config set project ai-fashion-studio-demo
+
+# Apply CORS configuration
 gsutil cors set cors.json gs://ai-fashion-studio-demo.firebasestorage.app
 ```
 
-Create `cors.json`:
-```json
-[
-  {
-    "origin": ["https://your-domain.vercel.app"],
-    "method": ["GET", "POST", "PUT", "DELETE"],
-    "maxAgeSeconds": 3600
-  }
-]
-```
+The `cors.json` file is already included in the project and configured for public image access.
 
 ### Issue 4: Cloud Functions
 

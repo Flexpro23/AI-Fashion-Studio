@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import ImageDetailModal from './ImageDetailModal';
 
 interface ImageCardProps {
   imageUrl: string;
@@ -16,6 +17,7 @@ export default function ImageCard({
   model: _model
 }: ImageCardProps) {
   const [showOverlay, setShowOverlay] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -79,11 +81,13 @@ export default function ImageCard({
 
 
   return (
-    <div 
-      className="relative cursor-pointer group card overflow-hidden"
-      onMouseEnter={() => setShowOverlay(true)}
-      onMouseLeave={() => setShowOverlay(false)}
-    >
+    <>
+      <div 
+        className="relative cursor-pointer group card overflow-hidden"
+        onMouseEnter={() => setShowOverlay(true)}
+        onMouseLeave={() => setShowOverlay(false)}
+        onClick={() => setShowModal(true)}
+      >
       <img
         src={imageUrl}
         alt="Generated fashion shot"
@@ -147,5 +151,16 @@ export default function ImageCard({
         </svg>
       </div>
     </div>
+
+    {/* Image Detail Modal */}
+    <ImageDetailModal
+      isOpen={showModal}
+      onClose={() => setShowModal(false)}
+      imageUrl={imageUrl}
+      createdAt={createdAt}
+      method={_method}
+      model={_model}
+    />
+  </>
   );
 }

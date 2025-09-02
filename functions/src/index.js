@@ -212,10 +212,20 @@ exports.generateImage = functions.https.onCall(async (data, context) => {
           
           await file.save(generatedImageBuffer, { 
             metadata: {
-              contentType: part.inlineData.mimeType || 'image/jpeg'
+              contentType: part.inlineData.mimeType || 'image/jpeg',
+              cacheControl: 'public, max-age=31536000'
             }
           });
           await file.makePublic();
+
+          // Set CORS headers for the file
+          await file.setMetadata({
+            metadata: {
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type'
+            }
+          });
 
           const publicUrl = file.publicUrl();
 
@@ -374,9 +384,21 @@ exports.generateImageV2 = functions.https.onCall(async (data, context) => {
             const file = storage.bucket().file(`generated/${userId}/${fileName}`);
             
             await file.save(generatedImageBuffer, { 
-              metadata: { contentType: mimeType }
+              metadata: { 
+                contentType: mimeType,
+                cacheControl: 'public, max-age=31536000'
+              }
             });
             await file.makePublic();
+
+            // Set CORS headers for the file
+            await file.setMetadata({
+              metadata: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type'
+              }
+            });
 
             const publicUrl = file.publicUrl();
 
@@ -436,9 +458,21 @@ exports.generateImageV2 = functions.https.onCall(async (data, context) => {
             const file = storage.bucket().file(`generated/${userId}/${fileName}`);
             
             await file.save(generatedImageBuffer, { 
-              metadata: { contentType: mimeType }
+              metadata: { 
+                contentType: mimeType,
+                cacheControl: 'public, max-age=31536000'
+              }
             });
             await file.makePublic();
+
+            // Set CORS headers for the file
+            await file.setMetadata({
+              metadata: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type'
+              }
+            });
 
             const publicUrl = file.publicUrl();
 

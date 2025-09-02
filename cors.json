@@ -1,18 +1,14 @@
 [
   {
-    "origin": [
-      "https://ai-fashion-studio.vercel.app",
-      "https://*.vercel.app",
-      "http://localhost:3000",
-      "https://localhost:3000"
-    ],
-    "method": ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"],
-    "maxAgeSeconds": 3600,
+    "origin": ["*"],
+    "method": ["GET", "HEAD", "OPTIONS"],
+    "maxAgeSeconds": 86400,
     "responseHeader": [
       "Content-Type",
-      "Access-Control-Allow-Origin",
-      "Access-Control-Allow-Methods",
-      "Access-Control-Allow-Headers"
+      "Content-Length",
+      "Date",
+      "Server",
+      "Cache-Control"
     ]
   }
 ]

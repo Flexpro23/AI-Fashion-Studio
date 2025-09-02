@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postbuild": "next-sitemap",
     "analyze": "cross-env ANALYZE=true npm run build",
     "clean": "rm -rf .next out",
     "type-check": "tsc --noEmit",
