@@ -378,7 +378,7 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
 
               <div className="text-center text-body-sm text-[var(--muted-foreground)] mt-4">
                 {userData && userData.remainingGenerations > 0 
-                  ? 'Using the latest Gemini 2.5 Flash Image Preview model for realistic fashion generation.'
+                  ? 'Using advanced AI image generation for realistic fashion synthesis.'
                   : (
                     <div className="space-y-2">
                       <p>You&apos;ve used all your free generations.</p>

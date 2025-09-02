@@ -244,14 +244,6 @@ export default function ImageDetailPage() {
               <h3 className="font-semibold text-[var(--foreground)] mb-4">Generation Details</h3>
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-[var(--muted-foreground)]">AI Engine:</span>
-                  <span className="text-[var(--foreground)] font-medium">Gemini 2.5 Flash</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[var(--muted-foreground)]">Method:</span>
-                  <span className="text-[var(--foreground)] font-medium capitalize">{generation.method}</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-[var(--muted-foreground)]">Created:</span>
                   <span className="text-[var(--foreground)] font-medium">
                     {generation.createdAt.toLocaleDateString()}
@@ -311,10 +303,6 @@ export default function ImageDetailPage() {
                 <div>
                   <span className="text-[var(--muted-foreground)]">Processing:</span>
                   <p className="font-medium">AI Image Synthesis</p>
-                </div>
-                <div>
-                  <span className="text-[var(--muted-foreground)]">Technology:</span>
-                  <p className="font-medium">Google Vertex AI</p>
                 </div>
               </div>
             </div>
