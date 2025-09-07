@@ -92,34 +92,75 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
     setProgress(0);
 
     try {
-      // Debug authentication state
-      console.log('=== AUTHENTICATION DEBUG ===');
-      console.log('User object:', user);
-      console.log('User UID:', user.uid);
-      console.log('User email:', user.email);
-      // Note: Firebase User does not expose an accessToken property.
-      // Use getIdToken() to retrieve the current JWT for debugging purposes.
+      // Comprehensive authentication debugging
+      console.log('🔐 === AUTHENTICATION DEBUG ===');
+      console.log('👤 User object present:', !!user);
+      console.log('👤 User UID:', user?.uid);
+      console.log('👤 User email:', user?.email);
+      console.log('📧 User emailVerified:', user?.emailVerified);
+      console.log('🔄 User refreshToken present:', !!user?.refreshToken);
+      console.log('⏰ User metadata:', user?.metadata);
       
       // Get current ID token for debugging
-      const idToken = await user.getIdToken();
-      console.log('ID Token (first 50 chars):', idToken.substring(0, 50) + '...');
+      console.log('🎫 Getting ID token...');
+      const idToken = await user.getIdToken(true); // Force refresh
+      console.log('✅ ID Token obtained (first 50 chars):', idToken.substring(0, 50) + '...');
+      console.log('🎫 ID Token length:', idToken.length);
+      
+      // Validate token format
+      const tokenParts = idToken.split('.');
+      console.log('🧩 Token parts count:', tokenParts.length);
+      
+      // Decode token header for debugging (without verification)
+      try {
+        const header = JSON.parse(atob(tokenParts[0]));
+        console.log('🎫 Token header:', header);
+      } catch (e) {
+        console.warn('⚠️ Could not decode token header:', e);
+      }
+      
+      // Test Firebase app configuration
+      console.log('🔥 Firebase config check:');
+      console.log('📱 App name:', functions.app.name);
+      console.log('🌍 Functions region:', functions._region);
+      console.log('🔗 Functions URL:', functions._url);
+      
+      // First test authentication with a simple function
+      console.log('🧪 Testing authentication first...');
+      const testAuth = httpsCallable(functions, 'testAuth');
+      
+      try {
+        const authTestResult = await testAuth({ test: 'authentication' });
+        console.log('✅ Auth test successful:', authTestResult);
+      } catch (authError) {
+        console.error('❌ Auth test failed:', authError);
+        throw new Error(`Authentication test failed: ${authError.message}`);
+      }
       
       // Use Firebase Cloud Function V2 (Gemini 2.5)
+      console.log('🚀 Creating httpsCallable for generateImageV2...');
       const generateImageV2 = httpsCallable(functions, 'generateImageV2');
       
-      console.log('Calling Firebase Cloud Function V2 (Gemini 2.5)...');
-      console.log('Model URL:', modelImageUrl);
-      console.log('Garment URL:', garmentImageUrl);
+      console.log('📞 Calling Firebase Cloud Function V2 (Gemini 2.5)...');
+      console.log('📸 Model URL:', modelImageUrl);
+      console.log('👗 Garment URL:', garmentImageUrl);
+      
+      // Prepare call data
+      const callData = {
+        modelImageUrl,
+        garmentImageUrl
+      };
+      console.log('📦 Call data prepared:', callData);
       
       // Simulate progress for cloud function V2
       const progressInterval = setInterval(() => {
         setProgress(prev => Math.min(prev + 10, 90));
       }, 500);
       
-      const result = await generateImageV2({
-        modelImageUrl,
-        garmentImageUrl
-      });
+      console.log('🚀 Making function call...');
+      console.log('⏰ Call timestamp:', new Date().toISOString());
+      
+      const result = await generateImageV2(callData);
 
       clearInterval(progressInterval);
       

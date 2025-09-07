@@ -63,6 +63,27 @@ async function downloadImageFromUrl(url) {
   }
 }
 
+// Test function to validate authentication
+exports.testAuth = functions.https.onCall(async (data, context) => {
+  console.log("🧪 === TEST AUTH FUNCTION CALLED ===");
+  console.log("⏰ Timestamp:", new Date().toISOString());
+  console.log("📝 Data received:", JSON.stringify(data, null, 2));
+  console.log("🔐 Auth context:", JSON.stringify(context?.auth, null, 2));
+  
+  if (!context.auth) {
+    console.error("❌ AUTHENTICATION FAILED: No auth context provided");
+    throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+  }
+
+  console.log("✅ Authentication successful!");
+  return {
+    success: true,
+    userId: context.auth.uid,
+    email: context.auth.token.email,
+    message: "Authentication test passed!"
+  };
+});
+
 // Main image generation function using Gemini 2.5 Flash Image Preview
 exports.generateImageV2 = functions.https.onCall(async (data, context) => {
   console.log("🚀 === GENERATEIMAGEV2 FUNCTION STARTED ===");
@@ -139,6 +160,32 @@ The operation is a precise replacement of the clothing on the original model, no
     
     console.log("📝 Preparing AI request...");
     
+    // Set up generation config according to Vertex AI official implementation
+    const generationConfig = {
+      maxOutputTokens: 32768,
+      temperature: 1,
+      topP: 0.95,
+      responseModalities: ["TEXT", "IMAGE"],
+      safetySettings: [
+        {
+          category: 'HARM_CATEGORY_HATE_SPEECH',
+          threshold: 'OFF',
+        },
+        {
+          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+          threshold: 'OFF',
+        },
+        {
+          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+          threshold: 'OFF',
+        },
+        {
+          category: 'HARM_CATEGORY_HARASSMENT',
+          threshold: 'OFF',
+        }
+      ],
+    };
+
     const req = {
       model: 'gemini-2.5-flash-image-preview',
       contents: [
@@ -151,15 +198,11 @@ The operation is a precise replacement of the clothing on the original model, no
           ]
         }
       ],
-      config: {
-        maxOutputTokens: 32768,
-        temperature: 0.3,
-        topP: 0.8,
-        responseModalities: ["TEXT", "IMAGE"],
-      },
+      config: generationConfig,
     };
 
     console.log("🚀 Sending request to Gemini AI...");
+    console.log("📋 Request structure:", JSON.stringify(req, null, 2));
     
     const response = await ai.models.generateContent(req);
     
