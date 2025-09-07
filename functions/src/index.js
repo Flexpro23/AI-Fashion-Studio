@@ -1,10 +1,8 @@
 const admin = require("firebase-admin");
 const functions = require("firebase-functions");
-const { GoogleAuth } = require("google-auth-library");
-const axios = require("axios");
 const { GoogleGenAI } = require("@google/genai");
 
-// Initialize Firebase Admin
+// Initialize Firebase Admin (automatically uses Cloud Function's service account)
 if (!admin.apps.length) {
   admin.initializeApp();
 }
@@ -58,161 +56,125 @@ async function downloadImageFromUrl(url) {
   }
 }
 
-exports.generateImage = functions.https.onCall(async (data, context) => {
-  console.log("Function called with data keys:", Object.keys(data || {}));
-  console.log("Auth context:", context?.auth?.uid ? "Authenticated" : "Not authenticated");
-
-  // Check if user is authenticated
+// V2 function using @google/genai SDK for Gemini 2.5 Flash Image Preview
+exports.generateImageV2 = functions.https.onCall(async (data, context) => {
+  console.log("=== GENERATEIMAGEV2 FUNCTION CALLED ===");
+  console.log("Timestamp:", new Date().toISOString());
+  console.log("Data keys:", Object.keys(data || {}));
+  console.log("Raw context:", JSON.stringify(context, null, 2));
+  console.log("Context auth:", context?.auth ? `Authenticated as ${context.auth.uid}` : "NOT AUTHENTICATED");
+  console.log("Auth token present:", !!context?.auth?.token);
+  
+  // CRITICAL: Check if user is authenticated
   if (!context.auth) {
+    console.error("🚨 AUTHENTICATION FAILED: No auth context provided");
+    console.error("Full context object:", context);
     throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
   }
 
-  // Handle FlutterFlow's data structure - parameters might be nested in 'data' property
-  let actualData = data;
-  if (data && data.data && typeof data.data === 'object') {
-    actualData = data.data;
-    console.log("Using nested data structure, keys:", Object.keys(actualData || {}));
-  }
-
-  // Extract parameters - supporting both base64 and URL formats
-  const { modelImageUrl, garmentImageUrl, baseOutfitImage, baseClothingImage } = actualData;
+  const { modelImageUrl, garmentImageUrl } = data;
   const userId = context.auth.uid;
 
-  // Determine if we have URLs (from current UI) or base64 data (from other implementation)
-  let modelBase64, garmentBase64;
+  console.log("User ID:", userId);
+  console.log("Model Image URL:", modelImageUrl);
+  console.log("Garment Image URL:", garmentImageUrl);
 
   try {
-    if (modelImageUrl && garmentImageUrl) {
-      // Current UI sends URLs - need to download and convert to base64
-      console.log('Model image URL:', modelImageUrl);
-      console.log('Garment image URL:', garmentImageUrl);
-      console.log('Downloading images from URLs...');
-      
-      const modelImageBuffer = await downloadImageFromUrl(modelImageUrl);
-      const garmentImageBuffer = await downloadImageFromUrl(garmentImageUrl);
-      
-      modelBase64 = modelImageBuffer.toString('base64');
-      garmentBase64 = garmentImageBuffer.toString('base64');
-      console.log('Images downloaded and converted to base64 successfully.');
-      
-    } else if (baseOutfitImage && baseClothingImage) {
-      // Direct base64 input
-      modelBase64 = baseOutfitImage;
-      garmentBase64 = baseClothingImage;
-      console.log('Using provided base64 images.');
-      
-    } else {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Missing required parameters. Provide either (modelImageUrl + garmentImageUrl) or (baseOutfitImage + baseClothingImage)."
-      );
-    }
-
-    if (!modelBase64 || typeof modelBase64 !== "string") {
-      console.error("Invalid model image data. Received:", typeof modelBase64);
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Missing or invalid model image data (must be base64-encoded string).",
-      );
-    }
-
-    if (!garmentBase64 || typeof garmentBase64 !== "string") {
-      console.error("Invalid garment image data. Received:", typeof garmentBase64);
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Missing or invalid garment image data (must be base64-encoded string).",
-      );
-    }
-
-    console.log("Starting image generation process...");
+    console.log('Downloading images...');
+    const modelImageBuffer = await downloadImageFromUrl(modelImageUrl);
+    const garmentImageBuffer = await downloadImageFromUrl(garmentImageUrl);
     
-    // Use Google Auth library to get credentials from environment
-    const auth = new GoogleAuth({
-      scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+    console.log('Images downloaded successfully');
+    const modelBase64 = modelImageBuffer.toString('base64');
+    const garmentBase64 = garmentImageBuffer.toString('base64');
+    console.log(`Model image base64 length: ${modelBase64.length}`);
+    console.log(`Garment image base64 length: ${garmentBase64.length}`);
+    
+    console.log("Starting Gemini 2.5 generation...");
+    
+    // Initialize Google GenAI with Vertex AI - using default service account authentication
+    console.log("Initializing GoogleGenAI client...");
+    const ai = new GoogleGenAI({
+      vertexai: true,
+      project: 'ai-fashion-studio-demo',
+      location: 'global'
     });
-    const client = await auth.getClient();
-    const accessToken = await client.getAccessToken();
     
-    console.log("Successfully obtained access token");
+    console.log("GenAI client initialized successfully");
     
-    // Vertex AI API endpoint for Gemini image generation
-    const projectId = "ai-fashion-studio-demo";
-    const location = "us-central1";
-    const modelId = "gemini-2.0-flash-preview-image-generation";
-    const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelId}:generateContent`;
+    // Enhanced prompt for better virtual try-on results
+    const enhancedPrompt = `
+You are a professional digital fashion assistant. Your task is to perform a hyper-realistic virtual try-on.
 
-    console.log("Using endpoint:", endpoint);
+You will be given two images:
+1. The 'Model Image' which contains a person.
+2. The 'Garment Image' which contains an article of clothing.
 
-    // Prepare request data
-    const requestData = {
+**Your instructions are absolute:**
+1. Take the exact garment from the 'Garment Image' and place it onto the person in the 'Model Image'.
+2. **CRITICAL:** The final output image MUST be identical to the original 'Model Image' in every way EXCEPT for the clothing. You MUST NOT change the model's facial features, expression, skin tone, hair, body shape, or pose. You MUST NOT change the background, lighting, or shadows of the original scene.
+3. The garment must fit the model's body naturally, conforming to their pose and creating realistic wrinkles, drapes, and shadows.
+4. If the 'Garment Image' has a background, ignore it completely. Only use the clothing item itself.
+
+The operation is a precise replacement of the clothing on the original model, nothing more.
+`;
+    
+    const req = {
+      model: 'gemini-2.5-flash-image-preview',
       contents: [
         {
           role: "user",
           parts: [
-            {
-              text: "Generate a realistic image of this person wearing this clothing. Make it look natural, well-fitted, and ensure the full outfit is visible. Blend the clothing naturally onto the person while maintaining realistic lighting, shadows, and fabric draping.",
-            },
-            {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: modelBase64,
-              },
-            },
-            {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: garmentBase64,
-              },
-            },
-          ],
-        },
+            { text: enhancedPrompt },
+            { inlineData: { mimeType: "image/jpeg", data: modelBase64 } },
+            { inlineData: { mimeType: "image/jpeg", data: garmentBase64 } }
+          ]
+        }
       ],
-      generationConfig: {
-        temperature: 1,
-        topP: 0.95,
-        maxOutputTokens: 8192,
+      config: {
+        maxOutputTokens: 32768,
+        temperature: 0.3,
+        topP: 0.8,
         responseModalities: ["TEXT", "IMAGE"],
       },
-      safetySettings: [
-        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "OFF" },
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "OFF" },
-        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "OFF" },
-        { category: "HARM_CATEGORY_HARASSMENT", threshold: "OFF" },
-        { category: "HARM_CATEGORY_IMAGE_HATE", threshold: "OFF" },
-        { category: "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", threshold: "OFF" },
-        { category: "HARM_CATEGORY_IMAGE_HARASSMENT", threshold: "OFF" },
-        { category: "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT", threshold: "OFF" },
-      ],
     };
 
-    console.log("Making API request to Vertex AI...");
-
-    // Make the API request
-    const response = await axios.post(endpoint, requestData, {
-      headers: {
-        Authorization: `Bearer ${accessToken.token}`,
-        "Content-Type": "application/json",
-      },
-      timeout: 60000, // 60 second timeout
-    });
-
-    console.log("Received response from Vertex AI");
-
-    // Process the response
-    if (response.data && response.data.candidates && response.data.candidates.length > 0) {
-      const parts = response.data.candidates[0].content.parts || [];
+    console.log("Making request to Gemini 2.5...");
+    const response = await ai.models.generateContent(req);
+    console.log("Got response from Gemini 2.5");
+    
+    // Extract image from response
+    if (response && response.candidates && response.candidates.length > 0) {
+      const parts = response.candidates[0].content.parts || [];
       for (const part of parts) {
-        if (part.inlineData) {
-          console.log("Successfully generated image");
+        let imageData = null;
+        let mimeType = "image/jpeg";
+        
+        // Check for image data in different possible locations
+        if (part.inlineData && part.inlineData.data) {
+          imageData = part.inlineData.data;
+          mimeType = part.inlineData.mimeType || "image/jpeg";
+        } else if (part.blob && part.blob.data) {
+          imageData = part.blob.data;
+          mimeType = part.blob.mimeType || "image/jpeg";
+        } else if (part.image && part.image.data) {
+          imageData = part.image.data;
+          mimeType = part.image.mimeType || "image/jpeg";
+        } else if (part.data) {
+          imageData = part.data;
+        }
+        
+        if (imageData) {
+          console.log("Found generated image data");
           
-          // Save the generated image to Firebase Storage
-          const generatedImageBuffer = Buffer.from(part.inlineData.data, 'base64');
-          const fileName = `generated-image-${Date.now()}.jpg`;
+          // Save image to Firebase Storage
+          const generatedImageBuffer = Buffer.from(imageData, 'base64');
+          const fileName = `generated-v2-${Date.now()}.jpg`;
           const file = storage.bucket().file(`generated/${userId}/${fileName}`);
           
           await file.save(generatedImageBuffer, { 
-            metadata: {
-              contentType: part.inlineData.mimeType || 'image/jpeg',
+            metadata: { 
+              contentType: mimeType,
               cacheControl: 'public, max-age=31536000'
             }
           });
@@ -228,277 +190,54 @@ exports.generateImage = functions.https.onCall(async (data, context) => {
           });
 
           const publicUrl = file.publicUrl();
+          console.log("Image saved to:", publicUrl);
 
-          // Create a record in Firestore
+          // Create record in Firestore
           await db.collection('generations').add({
             userId,
-            garmentImageUrl: garmentImageUrl || 'base64-provided',
+            garmentImageUrl,
             outputImageUrl: publicUrl,
             createdAt: new Date(),
-            method: 'vertex-ai-gemini-2.0'
+            method: 'gemini-2.5-simple',
+            model: 'gemini-2.5-flash-image-preview'
           });
 
           return {
             success: true,
             resultUrl: publicUrl,
-            imageData: part.inlineData.data,
-            mimeType: part.inlineData.mimeType || "image/jpeg",
+            imageData,
+            mimeType,
           };
         }
       }
     }
 
-    console.warn("No image data found in response");
-    return {
-      success: false,
-      error: "Image generation failed: No image returned by model.",
-    };
-  } catch (error) {
-    console.error("Image generation error:", error.response?.data || error.message || error);
-
-    let message = "Image generation failed due to an internal error.";
-    let errorCode = "internal";
-
-    if (error.response?.status === 401) {
-      message = "Authentication failed. Please check API permissions.";
-      errorCode = "unauthenticated";
-    } else if (error.response?.status === 403) {
-      message = "Access denied. Please check API permissions and quotas.";
-      errorCode = "permission-denied";
-    } else if (error.response?.data) {
-      message += ` Details: ${JSON.stringify(error.response.data)}`;
-    } else if (error.message) {
-      message += ` Details: ${error.message}`;
-    }
-    
-    throw new functions.https.HttpsError(errorCode, message);
-  }
-});
-
-// Simple V2 function using Google GenAI SDK with Gemini 2.5 Flash Image Preview
-exports.generateImageV2 = functions.https.onCall(async (data, context) => {
-  console.log("GenerateImageV2 function called");
-  
-  // Check if user is authenticated
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
-  }
-
-  const { modelImageUrl, garmentImageUrl } = data;
-  const userId = context.auth.uid;
-
-  try {
-    console.log('Downloading images...');
-    const modelImageBuffer = await downloadImageFromUrl(modelImageUrl);
-    const garmentImageBuffer = await downloadImageFromUrl(garmentImageUrl);
-    
-    const modelBase64 = modelImageBuffer.toString('base64');
-    const garmentBase64 = garmentImageBuffer.toString('base64');
-    
-    console.log("Starting Gemini 2.5 generation...");
-    
-    // Initialize Google GenAI
-    const ai = new GoogleGenAI({
-      vertexai: true,
-      project: 'ai-fashion-studio-demo',
-      location: 'global'
-    });
-    
-    const req = {
-      model: 'gemini-2.5-flash-image-preview',
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: "Generate a realistic image of this person wearing this clothing. Make it look natural, well-fitted, and ensure the full outfit is visible."
-            },
-            {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: modelBase64,
-              },
-            },
-            {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: garmentBase64,
-              },
-            }
-          ]
-        }
-      ],
-      config: {
-        maxOutputTokens: 32768,
-        temperature: 1,
-        topP: 0.95,
-        responseModalities: ["TEXT", "IMAGE"],
-      },
-    };
-
-    const response = await ai.models.generateContent(req);
-    console.log("Got response from Gemini 2.5");
-    console.log("Full response structure:", JSON.stringify(response, null, 2));
-    
-    // Debug response structure - response is direct, not nested
-    if (response && response.candidates) {
-      console.log("Direct response.candidates found:", response.candidates);
-      
-      if (response.candidates && response.candidates.length > 0) {
-        console.log("Found candidates, checking parts...");
-        const parts = response.candidates[0].content.parts || [];
-        console.log("Parts:", JSON.stringify(parts, null, 2));
-        
-        for (const part of parts) {
-          console.log("Processing part:", JSON.stringify(part, null, 2));
-          
-          // Try multiple possible locations for image data
-          let imageData = null;
-          let mimeType = "image/jpeg";
-          
-          if (part.inlineData && part.inlineData.data) {
-            console.log("Found image data in part.inlineData.data");
-            imageData = part.inlineData.data;
-            mimeType = part.inlineData.mimeType || "image/jpeg";
-          } else if (part.blob && part.blob.data) {
-            console.log("Found image data in part.blob.data");
-            imageData = part.blob.data;
-            mimeType = part.blob.mimeType || "image/jpeg";
-          } else if (part.image && part.image.data) {
-            console.log("Found image data in part.image.data");
-            imageData = part.image.data;
-            mimeType = part.image.mimeType || "image/jpeg";
-          } else if (part.data) {
-            console.log("Found image data in part.data");
-            imageData = part.data;
-          }
-          
-          if (imageData) {
-            console.log("Processing image data, length:", imageData.length);
-          
-            // Save image
-            const generatedImageBuffer = Buffer.from(imageData, 'base64');
-            const fileName = `generated-v2-${Date.now()}.jpg`;
-            const file = storage.bucket().file(`generated/${userId}/${fileName}`);
-            
-            await file.save(generatedImageBuffer, { 
-              metadata: { 
-                contentType: mimeType,
-                cacheControl: 'public, max-age=31536000'
-              }
-            });
-            await file.makePublic();
-
-            // Set CORS headers for the file
-            await file.setMetadata({
-              metadata: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type'
-              }
-            });
-
-            const publicUrl = file.publicUrl();
-
-            // Save to Firestore
-            await db.collection('generations').add({
-              userId,
-              garmentImageUrl,
-              outputImageUrl: publicUrl,
-              createdAt: new Date(),
-              method: 'gemini-2.5-simple'
-            });
-
-            return {
-              success: true,
-              resultUrl: publicUrl,
-              imageData: imageData,
-              mimeType: mimeType,
-            };
-          }
-        }
-      } else {
-        console.log("No candidates found in direct response");
-      }
-    } else {
-      console.log("No response.candidates found - checking for nested response...");
-      
-      // Try the old nested structure as fallback
-      if (response && response.response && response.response.candidates) {
-        console.log("Found nested response.response.candidates");
-        const parts = response.response.candidates[0].content.parts || [];
-        console.log("Nested parts:", JSON.stringify(parts, null, 2));
-        
-        // Same parsing logic for nested structure...
-        for (const part of parts) {
-          let imageData = null;
-          let mimeType = "image/jpeg";
-          
-          if (part.inlineData && part.inlineData.data) {
-            imageData = part.inlineData.data;
-            mimeType = part.inlineData.mimeType || "image/jpeg";
-          } else if (part.blob && part.blob.data) {
-            imageData = part.blob.data;
-            mimeType = part.blob.mimeType || "image/jpeg";
-          } else if (part.image && part.image.data) {
-            imageData = part.image.data;
-            mimeType = part.image.mimeType || "image/jpeg";
-          } else if (part.data) {
-            imageData = part.data;
-          }
-          
-          if (imageData) {
-            console.log("Found image data in nested structure");
-            const generatedImageBuffer = Buffer.from(imageData, 'base64');
-            const fileName = `generated-v2-${Date.now()}.jpg`;
-            const file = storage.bucket().file(`generated/${userId}/${fileName}`);
-            
-            await file.save(generatedImageBuffer, { 
-              metadata: { 
-                contentType: mimeType,
-                cacheControl: 'public, max-age=31536000'
-              }
-            });
-            await file.makePublic();
-
-            // Set CORS headers for the file
-            await file.setMetadata({
-              metadata: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type'
-              }
-            });
-
-            const publicUrl = file.publicUrl();
-
-            await db.collection('generations').add({
-              userId,
-              garmentImageUrl,
-              outputImageUrl: publicUrl,
-              createdAt: new Date(),
-              method: 'gemini-2.5-simple'
-            });
-
-            return {
-              success: true,
-              resultUrl: publicUrl,
-              imageData: imageData,
-              mimeType: mimeType,
-            };
-          }
-        }
-      }
-    }
-
-    console.log("No image data found in any parts - returning error");
+    console.log("No image generated");
     return {
       success: false,
       error: "No image generated",
     };
 
   } catch (error) {
-    console.error("V2 generation error:", error);
-    throw new functions.https.HttpsError("internal", `Generation failed: ${error.message}`);
+    console.error("=== V2 GENERATION ERROR ===");
+    console.error("Error type:", error.constructor.name);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    console.error("Error details:", error);
+    
+    // Check for specific error types
+    if (error.message && error.message.includes('Authentication')) {
+      console.error("Authentication error detected");
+      throw new functions.https.HttpsError("unauthenticated", `Authentication failed: ${error.message}`);
+    } else if (error.message && error.message.includes('Permission denied')) {
+      console.error("Permission error detected");
+      throw new functions.https.HttpsError("permission-denied", `Permission denied: ${error.message}`);
+    } else if (error.message && error.message.includes('API key')) {
+      console.error("API key error detected");
+      throw new functions.https.HttpsError("failed-precondition", `API configuration error: ${error.message}`);
+    } else {
+      console.error("General error - throwing as internal");
+      throw new functions.https.HttpsError("internal", `Generation failed: ${error.message}`);
+    }
   }
 });

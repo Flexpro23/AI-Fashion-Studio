@@ -1,19 +1,23 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "commonjs",
-    "lib": ["ES2020"],
-    "strict": true,
+    "module": "NodeNext",
     "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "nodenext",
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
     "outDir": "lib",
+    "sourceMap": true,
+    "strict": true,
+    "target": "es2017",
     "allowJs": true,
-    "checkJs": false,
-    "declaration": false,
-    "sourceMap": true
+    "checkJs": false
   },
-  "include": ["src/**/*.js", "src/**/*.ts"],
-  "exclude": ["node_modules", "lib"]
+  "compileOnSave": false,
+  "include": [
+    "*.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib"
+  ]
 }
-

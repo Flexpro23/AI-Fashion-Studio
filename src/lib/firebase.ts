@@ -1,8 +1,9 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, collection, getDocs } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { PredefinedModel } from '@/types';
 
 // Validate required environment variables
 const requiredEnvVars = {
@@ -46,7 +47,7 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const functions = getFunctions(app);
+export const functions = getFunctions(app, 'us-central1');
 
 // Development emulators (optional - uncomment if using Firebase emulators)
 if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
@@ -73,6 +74,31 @@ console.log('🔥 Firebase initialized successfully:', {
   authDomain: firebaseConfig.authDomain,
   environment: process.env.NODE_ENV,
   apiKeyPrefix: firebaseConfig.apiKey?.substring(0, 10) + '...',
+  functionsRegion: 'us-central1'
 });
+
+// Service function to fetch predefined models from Firestore
+export const getPredefinedModels = async (): Promise<PredefinedModel[]> => {
+  try {
+    const modelsCollection = collection(db, 'predefinedModels');
+    const modelSnapshot = await getDocs(modelsCollection);
+    
+    if (modelSnapshot.empty) {
+      console.log('No predefined models found in Firestore');
+      return [];
+    }
+    
+    const modelList = modelSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as PredefinedModel[];
+    
+    console.log(`Fetched ${modelList.length} predefined models`);
+    return modelList;
+  } catch (error) {
+    console.error('Error fetching predefined models:', error);
+    return [];
+  }
+};
 
 export default app;

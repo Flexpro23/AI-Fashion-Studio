@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { getFunctions } from 'firebase/functions';
 import { useRouter } from 'next/navigation';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { functions } from '@/lib/firebase';
 import ImageUploader from './ImageUploader';
+import ModelLibrary from './ModelLibrary';
+import Link from 'next/link';
 
 type Step = 'model' | 'garment' | 'choose-method' | 'generating' | 'result';
 
@@ -22,11 +24,12 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
   const [, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
   const [progress, setProgress] = useState(0);
+  const [modelSelectionType, setModelSelectionType] = useState<'library' | 'upload'>('library');
   const router = useRouter();
-  const { userData, decrementGenerations } = useAuth();
+  const { user, userData, decrementGenerations } = useAuth();
 
   const steps = [
-    { id: 'model', title: 'Upload Model', description: 'Choose your model photo', icon: '👤' },
+    { id: 'model', title: 'Select Model', description: 'Choose from our library or upload your own', icon: '👤' },
     { id: 'garment', title: 'Upload Garment', description: 'Select the clothing item', icon: '👕' },
     { id: 'choose-method', title: 'Choose Method', description: 'Select generation type', icon: '⚙️' },
     { id: 'generating', title: 'AI Magic', description: 'Creating your vision', icon: '✨' },
@@ -37,6 +40,11 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
     console.log('Model upload completed, URL:', url);
     setModelImageUrl(url);
     // Don't auto-advance, let user click Next button
+  };
+
+  const handleModelSelect = (url: string) => {
+    console.log('Model selected from library, URL:', url);
+    setModelImageUrl(url);
   };
 
   const handleGarmentUpload = (url: string) => {
@@ -71,14 +79,32 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
   const handleGenerate = async (method: 'cloudv2') => {
     if (!modelImageUrl || !garmentImageUrl) return;
 
+    // Check authentication before proceeding
+    if (!user) {
+      console.error('User not authenticated');
+      setError('Please log in to generate images');
+      return;
+    }
+
     setCurrentStep('generating');
     setIsGenerating(true);
     setError('');
     setProgress(0);
 
     try {
+      // Debug authentication state
+      console.log('=== AUTHENTICATION DEBUG ===');
+      console.log('User object:', user);
+      console.log('User UID:', user.uid);
+      console.log('User email:', user.email);
+      // Note: Firebase User does not expose an accessToken property.
+      // Use getIdToken() to retrieve the current JWT for debugging purposes.
+      
+      // Get current ID token for debugging
+      const idToken = await user.getIdToken();
+      console.log('ID Token (first 50 chars):', idToken.substring(0, 50) + '...');
+      
       // Use Firebase Cloud Function V2 (Gemini 2.5)
-      const functions = getFunctions();
       const generateImageV2 = httpsCallable(functions, 'generateImageV2');
       
       console.log('Calling Firebase Cloud Function V2 (Gemini 2.5)...');
@@ -228,6 +254,7 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
     setGeneratedImageUrl('');
     setError('');
     setProgress(0);
+    setModelSelectionType('library');
   };
 
   const goToLookbook = () => {
@@ -279,13 +306,66 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
               <h2 className="text-heading-2 text-gradient mb-2">{currentStepData.title}</h2>
               <p className="text-body text-[var(--muted-foreground)]">{currentStepData.description}</p>
             </div>
-            <ImageUploader 
-              type="models" 
-              onUploadComplete={handleModelUpload} 
-              onNext={handleModelNext}
-              currentImageUrl={modelImageUrl}
-              showNextButton={!!modelImageUrl}
-            />
+
+            {/* Model Selection Tabs */}
+            <div className="flex justify-center mb-6">
+              <div className="bg-[var(--muted)] rounded-2xl p-1 flex">
+                <button
+                  onClick={() => setModelSelectionType('library')}
+                  className={`px-6 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
+                    modelSelectionType === 'library'
+                      ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--primary-alt)] text-[var(--primary-foreground)] shadow-md'
+                      : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  Choose Our Model
+                </button>
+                <button
+                  onClick={() => setModelSelectionType('upload')}
+                  className={`px-6 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
+                    modelSelectionType === 'upload'
+                      ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--primary-alt)] text-[var(--primary-foreground)] shadow-md'
+                      : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  Upload Your Own
+                </button>
+              </div>
+            </div>
+
+            {/* Model Selection Content */}
+            {modelSelectionType === 'library' ? (
+              <div className="space-y-6">
+                <ModelLibrary 
+                  onSelectModel={handleModelSelect}
+                  selectedModelUrl={modelImageUrl}
+                />
+                {modelImageUrl && (
+                  <div className="animate-slide-up">
+                    <button 
+                      onClick={handleModelNext}
+                      className="btn-step w-full flex items-center justify-center bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Continue to Next Step
+                      <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <ImageUploader 
+                type="models" 
+                onUploadComplete={handleModelUpload} 
+                onNext={handleModelNext}
+                currentImageUrl={modelImageUrl}
+                showNextButton={!!modelImageUrl}
+              />
+            )}
           </div>
         );
 
@@ -361,19 +441,26 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
 
               {/* Generation method button */}
               <div className="space-y-4">
-                <button 
-                  onClick={handleCloudFunctionV2Generate}
-                  className={`btn-step w-full flex items-center justify-center ${
-                    userData && userData.remainingGenerations > 0
-                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
-                      : 'bg-gray-500 cursor-not-allowed opacity-50'
-                  }`}
-                  disabled={!userData || userData.remainingGenerations <= 0}
-                >
-                  {userData && userData.remainingGenerations > 0 
-                    ? 'Generate AI Fashion Image ✨' 
-                    : 'No Generations Remaining'}
-                </button>
+                {userData && userData.remainingGenerations > 0 ? (
+                  <button 
+                    onClick={handleCloudFunctionV2Generate}
+                    className="btn-step w-full flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  >
+                    Generate AI Fashion Image ✨
+                  </button>
+                ) : (
+                  <Link href="/pricing" className="block">
+                    <button className="btn-step w-full flex items-center justify-center bg-gradient-to-r from-[var(--primary)] to-[var(--primary-alt)] hover:from-[var(--primary-alt)] hover:to-[var(--primary)]">
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      View Plans & Get More Credits
+                      <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-1M10 6V5a2 2 0 012-2h2a2 2 0 012 2v1M10 6h4" />
+                      </svg>
+                    </button>
+                  </Link>
+                )}
               </div>
 
               <div className="text-center text-body-sm text-[var(--muted-foreground)] mt-4">
@@ -382,12 +469,9 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
                   : (
                     <div className="space-y-2">
                       <p>You&apos;ve used all your free generations.</p>
-                      <button
-                        onClick={() => router.push('/contact')}
-                        className="text-[var(--primary)] hover:underline"
-                      >
-                        Contact support to get more →
-                      </button>
+                      <p className="text-[var(--primary)]">
+                        Click the button above to view our pricing plans and get more credits.
+                      </p>
                     </div>
                   )
                 }
