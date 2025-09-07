@@ -63,56 +63,50 @@ async function downloadImageFromUrl(url) {
   }
 }
 
-// Test function to validate authentication
-exports.testAuth = functions.https.onCall(async (data, context) => {
-  console.log("🧪 === TEST AUTH FUNCTION CALLED ===");
+// Simple test function
+exports.testSimple = functions.https.onCall(async (data, context) => {
+  console.log("🧪 === SIMPLE TEST FUNCTION CALLED ===");
   console.log("⏰ Timestamp:", new Date().toISOString());
-  console.log("📝 Data received:", JSON.stringify(data, null, 2));
-  console.log("🔐 Auth context:", JSON.stringify(context?.auth, null, 2));
   
   if (!context.auth) {
-    console.error("❌ AUTHENTICATION FAILED: No auth context provided");
-    throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+    console.error("❌ No auth");
+    throw new functions.https.HttpsError('unauthenticated', 'Not authenticated');
   }
 
-  console.log("✅ Authentication successful!");
-  return {
-    success: true,
-    userId: context.auth.uid,
-    email: context.auth.token.email,
-    message: "Authentication test passed!"
-  };
+  console.log("✅ Success!");
+  return { success: true, message: "Test passed!" };
 });
 
 // Main image generation function using Gemini 2.5 Flash Image Preview
 exports.generateImageV2 = functions.https.onCall(async (data, context) => {
   console.log("🚀 === GENERATEIMAGEV2 FUNCTION STARTED ===");
   console.log("⏰ Timestamp:", new Date().toISOString());
-  console.log("📝 Data received:", JSON.stringify(data, null, 2));
-  console.log("🔐 Auth context:", JSON.stringify(context?.auth, null, 2));
   
-  // CRITICAL: Check if user is authenticated
-  if (!context.auth) {
-    console.error("❌ AUTHENTICATION FAILED: No auth context provided");
-    throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
-  }
-
-  console.log("✅ User authenticated:", context.auth.uid);
-
-  const { modelImageUrl, garmentImageUrl } = data;
-  const userId = context.auth.uid;
-
-  console.log("👤 User ID:", userId);
-  console.log("📸 Model Image URL:", modelImageUrl);
-  console.log("👗 Garment Image URL:", garmentImageUrl);
-
-  // Validate input parameters
-  if (!modelImageUrl || !garmentImageUrl) {
-    console.error("❌ Missing required parameters");
-    throw new functions.https.HttpsError('invalid-argument', 'Missing modelImageUrl or garmentImageUrl');
-  }
-
   try {
+    console.log("📝 Data received:", JSON.stringify(data, null, 2));
+    console.log("🔐 Auth context:", JSON.stringify(context?.auth, null, 2));
+    
+    // CRITICAL: Check if user is authenticated
+    if (!context.auth) {
+      console.error("❌ AUTHENTICATION FAILED: No auth context provided");
+      throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+    }
+
+    console.log("✅ User authenticated:", context.auth.uid);
+
+    const { modelImageUrl, garmentImageUrl } = data;
+    const userId = context.auth.uid;
+
+    console.log("👤 User ID:", userId);
+    console.log("📸 Model Image URL:", modelImageUrl);
+    console.log("👗 Garment Image URL:", garmentImageUrl);
+
+    // Validate input parameters
+    if (!modelImageUrl || !garmentImageUrl) {
+      console.error("❌ Missing required parameters");
+      throw new functions.https.HttpsError('invalid-argument', 'Missing modelImageUrl or garmentImageUrl');
+    }
+
     console.log("⬇️ Starting image download...");
     
     // Download images
@@ -141,161 +135,14 @@ exports.generateImageV2 = functions.https.onCall(async (data, context) => {
     
     console.log("✅ Gemini AI initialized successfully");
     
-    // Enhanced prompt for better virtual try-on results
-    const enhancedPrompt = `
-You are a professional digital fashion assistant. Your task is to perform a hyper-realistic virtual try-on.
-
-You will be given two images:
-1. The 'Model Image' which contains a person.
-2. The 'Garment Image' which contains an article of clothing.
-
-**Your instructions are absolute:**
-1. Take the exact garment from the 'Garment Image' and place it onto the person in the 'Model Image'.
-2. **CRITICAL:** The final output image MUST be identical to the original 'Model Image' in every way EXCEPT for the clothing. You MUST NOT change the model's facial features, expression, skin tone, hair, body shape, or pose. You MUST NOT change the background, lighting, or shadows of the original scene.
-3. The garment must fit the model's body naturally, conforming to their pose and creating realistic wrinkles, drapes, and shadows.
-4. If the 'Garment Image' has a background, ignore it completely. Only use the clothing item itself.
-
-The operation is a precise replacement of the clothing on the original model, nothing more.
-`;
-    
-    console.log("📝 Preparing AI request...");
-    
-    // Set up generation config according to Vertex AI official implementation
-    const generationConfig = {
-      maxOutputTokens: 32768,
-      temperature: 1,
-      topP: 0.95,
-      responseModalities: ["TEXT", "IMAGE"],
-      safetySettings: [
-        {
-          category: 'HARM_CATEGORY_HATE_SPEECH',
-          threshold: 'OFF',
-        },
-        {
-          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-          threshold: 'OFF',
-        },
-        {
-          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-          threshold: 'OFF',
-        },
-        {
-          category: 'HARM_CATEGORY_HARASSMENT',
-          threshold: 'OFF',
-        }
-      ],
-    };
-
-    const req = {
-      model: 'gemini-2.5-flash-image-preview',
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: enhancedPrompt },
-            { inlineData: { mimeType: "image/jpeg", data: modelBase64 } },
-            { inlineData: { mimeType: "image/jpeg", data: garmentBase64 } }
-          ]
-        }
-      ],
-      config: generationConfig,
-    };
-
-    console.log("🚀 Sending request to Gemini AI...");
-    console.log("📋 Request structure:", JSON.stringify(req, null, 2));
-    
-    const response = await ai.models.generateContent(req);
-    
-    console.log("✅ Received response from Gemini AI");
-    console.log("📄 Response structure:", JSON.stringify(response, null, 2));
-    
-    // Extract image from response
-    if (response && response.candidates && response.candidates.length > 0) {
-      const parts = response.candidates[0].content.parts || [];
-      console.log(`🔍 Found ${parts.length} parts in response`);
-      
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        console.log(`🔍 Part ${i}:`, Object.keys(part));
-        
-        let imageData = null;
-        let mimeType = "image/jpeg";
-        
-        // Check for image data in different possible locations
-        if (part.inlineData && part.inlineData.data) {
-          imageData = part.inlineData.data;
-          mimeType = part.inlineData.mimeType || "image/jpeg";
-          console.log("✅ Found image in inlineData");
-        } else if (part.blob && part.blob.data) {
-          imageData = part.blob.data;
-          mimeType = part.blob.mimeType || "image/jpeg";
-          console.log("✅ Found image in blob");
-        } else if (part.image && part.image.data) {
-          imageData = part.image.data;
-          mimeType = part.image.mimeType || "image/jpeg";
-          console.log("✅ Found image in image");
-        } else if (part.data) {
-          imageData = part.data;
-          console.log("✅ Found image in data");
-        }
-        
-        if (imageData) {
-          console.log(`📊 Generated image data length: ${imageData.length}`);
-          console.log("💾 Saving image to Firebase Storage...");
-          
-          // Save image to Firebase Storage
-          const generatedImageBuffer = Buffer.from(imageData, 'base64');
-          const fileName = `generated-v2-${Date.now()}.jpg`;
-          const file = storage.bucket().file(`generated/${userId}/${fileName}`);
-          
-          await file.save(generatedImageBuffer, { 
-            metadata: { 
-              contentType: mimeType,
-              cacheControl: 'public, max-age=31536000'
-            }
-          });
-          
-          console.log("🌐 Making image public...");
-          await file.makePublic();
-
-          // Set CORS headers for the file
-          await file.setMetadata({
-            metadata: {
-              'Access-Control-Allow-Origin': '*',
-              'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-              'Access-Control-Allow-Headers': 'Content-Type'
-            }
-          });
-
-          const publicUrl = file.publicUrl();
-          console.log("✅ Image saved to:", publicUrl);
-
-          // Create record in Firestore
-          console.log("📝 Creating Firestore record...");
-          await db.collection('generations').add({
-            userId,
-            garmentImageUrl,
-            outputImageUrl: publicUrl,
-            createdAt: new Date(),
-            method: 'gemini-2.5-enhanced',
-            model: 'gemini-2.5-flash-image-preview'
-          });
-
-          console.log("🎉 Generation completed successfully!");
-          return {
-            success: true,
-            resultUrl: publicUrl,
-            imageData,
-            mimeType,
-          };
-        }
-      }
-    }
-
-    console.log("❌ No image generated in response");
+    // FOR TESTING: Return success without actual generation
+    console.log("🧪 TEST MODE: Returning success without generation");
     return {
-      success: false,
-      error: "No image generated",
+      success: true,
+      message: "Function reached this point successfully!",
+      userId: userId,
+      modelUrl: modelImageUrl,
+      garmentUrl: garmentImageUrl
     };
 
   } catch (error) {

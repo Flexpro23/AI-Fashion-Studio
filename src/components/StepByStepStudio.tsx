@@ -125,19 +125,7 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
       console.log('🌍 Functions region:', functions._region);
       console.log('🔗 Functions URL:', functions._url);
       
-      // First test authentication with a simple function
-      console.log('🧪 Testing authentication first...');
-      const testAuth = httpsCallable(functions, 'testAuth');
-      
-      try {
-        const authTestResult = await testAuth({ test: 'authentication' });
-        console.log('✅ Auth test successful:', authTestResult);
-      } catch (authError) {
-        console.error('❌ Auth test failed:', authError);
-        throw new Error(`Authentication test failed: ${authError.message}`);
-      }
-      
-      // Use Firebase Cloud Function V2 (Gemini 2.5)
+      // Use Firebase Cloud Function V2 (Gemini 2.5) - Auth is validated above
       console.log('🚀 Creating httpsCallable for generateImageV2...');
       const generateImageV2 = httpsCallable(functions, 'generateImageV2');
       
