@@ -4,19 +4,11 @@ const { GoogleGenAI } = require("@google/genai");
 
 // Initialize Firebase Admin - use default credentials in Cloud Functions environment
 if (!admin.apps.length) {
-  // Check if running in Cloud Functions environment
-  if (process.env.FUNCTIONS_EMULATOR || process.env.GOOGLE_CLOUD_PROJECT) {
-    // In Cloud Functions, use Application Default Credentials
-    admin.initializeApp();
-  } else {
-    // Local development - use service account
-    const path = require('path');
-    const serviceAccount = require(path.join(__dirname, '../service-account-key.json'));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      projectId: 'ai-fashion-studio-demo'
-    });
-  }
+  // Always use Application Default Credentials in Cloud Functions
+  // The service account is configured at the Cloud Functions level
+  admin.initializeApp({
+    projectId: 'ai-fashion-studio-demo'
+  });
 }
 
 const db = admin.firestore();
@@ -84,17 +76,21 @@ exports.testSimple = functions.https.onCall(async (data, context) => {
 });
 
 // Main image generation function using Gemini 2.5 Flash Image Preview
-exports.generateImageV2 = functions.https.onCall(async (data, context) => {
+exports.generateImageV2 = functions.region('us-central1').https.onCall(async (data, context) => {
   console.log("🚀 === GENERATEIMAGEV2 FUNCTION STARTED ===");
   console.log("⏰ Timestamp:", new Date().toISOString());
   
   try {
     console.log("📝 Data received:", JSON.stringify(data, null, 2));
-    console.log("🔐 Auth context:", JSON.stringify(context?.auth, null, 2));
-    
+    console.log("🔐 Auth context:", JSON.stringify(context, null, 2));
+    console.log("🔐 Auth object:", JSON.stringify(context?.auth, null, 2));
+    console.log("🔐 Raw context keys:", Object.keys(context || {}));
+
     // CRITICAL: Check if user is authenticated
-    if (!context.auth) {
+    if (!context || !context.auth || !context.auth.uid) {
       console.error("❌ AUTHENTICATION FAILED: No auth context provided");
+      console.error("❌ Context:", context);
+      console.error("❌ Auth:", context?.auth);
       throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
     }
 
