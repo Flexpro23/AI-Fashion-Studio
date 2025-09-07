@@ -1,16 +1,22 @@
 const admin = require("firebase-admin");
 const functions = require("firebase-functions");
 const { GoogleGenAI } = require("@google/genai");
-const path = require('path');
 
-// Initialize Firebase Admin with explicit service account
-const serviceAccount = require(path.join(__dirname, '../service-account-key.json'));
-
+// Initialize Firebase Admin - use default credentials in Cloud Functions environment
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: 'ai-fashion-studio-demo'
-  });
+  // Check if running in Cloud Functions environment
+  if (process.env.FUNCTIONS_EMULATOR || process.env.GOOGLE_CLOUD_PROJECT) {
+    // In Cloud Functions, use Application Default Credentials
+    admin.initializeApp();
+  } else {
+    // Local development - use service account
+    const path = require('path');
+    const serviceAccount = require(path.join(__dirname, '../service-account-key.json'));
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      projectId: 'ai-fashion-studio-demo'
+    });
+  }
 }
 
 const db = admin.firestore();
