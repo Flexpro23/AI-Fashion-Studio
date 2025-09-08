@@ -40,9 +40,9 @@ export default function RecaptchaLoader({ onLoad }: RecaptchaLoaderProps) {
       const siteKey = getRecaptchaSiteKey();
       console.log('Loading reCAPTCHA with site key:', siteKey);
       
-      // Create script element for reCAPTCHA
+      // Create script element for reCAPTCHA Enterprise (compatible with Firebase v11+)
       const script = document.createElement('script');
-      script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}&hl=en`;
+      script.src = `https://www.google.com/recaptcha/enterprise.js?render=${siteKey}&hl=en`;
       script.async = true;
       script.defer = true;
       

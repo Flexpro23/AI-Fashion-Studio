@@ -91,16 +91,17 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
             size: 'invisible', // Force invisible reCAPTCHA
             callback: () => {
               // reCAPTCHA solved successfully
-              console.log('reCAPTCHA verified successfully for SMS');
+              console.log('reCAPTCHA Enterprise verified successfully for SMS');
             },
             'expired-callback': () => {
-              setError('reCAPTCHA expired. Please try again.');
+              console.warn('reCAPTCHA expired, requesting new verification');
+              setError('Security verification expired. Please try again.');
               window.recaptchaVerifier?.clear();
               window.recaptchaVerifier = null;
             },
             'error-callback': (error: any) => {
-              console.error('reCAPTCHA error:', error);
-              setError('reCAPTCHA verification failed. Please try again.');
+              console.error('reCAPTCHA Enterprise error:', error);
+              setError('Security verification failed. Please refresh and try again.');
               window.recaptchaVerifier?.clear();
               window.recaptchaVerifier = null;
             }

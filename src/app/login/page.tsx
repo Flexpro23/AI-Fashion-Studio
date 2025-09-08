@@ -146,14 +146,27 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center">
-            <div className="text-sm text-[var(--muted-foreground)] mb-4">or</div>
+            {/* Elegant Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[var(--border)] opacity-50"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-[var(--background)] px-4 text-[var(--muted-foreground)]">or</span>
+              </div>
+            </div>
             
+            {/* Improved Email Button */}
             <button
               type="button"
               onClick={() => router.push('/login-email')}
-              className="w-full flex justify-center py-2.5 px-4 border border-[var(--border)] text-sm font-medium rounded-xl text-[var(--foreground)] bg-[var(--background)] hover:bg-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--ring)] transition-all duration-200"
+              className="group w-full flex items-center justify-center py-3 px-4 border-2 border-[var(--border)] text-sm font-medium rounded-xl text-[var(--foreground)] bg-[var(--background)] hover:bg-[var(--muted)] hover:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--ring)] transition-all duration-200 shadow-sm"
             >
-              📧 Continue with Email
+              <svg className="w-5 h-5 mr-3 text-[var(--muted-foreground)] group-hover:text-[var(--primary)] transition-colors" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+              </svg>
+              <span className="group-hover:text-[var(--primary)] transition-colors">Continue with Email</span>
             </button>
           </div>
 
