@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePhoneAuth } from '@/contexts/PhoneAuthContext';
 import PhoneInput from '@/components/PhoneInput';
+import RecaptchaLoader from '@/components/RecaptchaLoader';
 
 // Fashion icon component
 const FashionIcon = ({ className }: { className?: string }) => (
@@ -170,8 +171,8 @@ export default function LoginPage() {
           </div>
         </form>
 
-        {/* Invisible reCAPTCHA container */}
-        <div id="recaptcha-container"></div>
+        {/* reCAPTCHA Loader */}
+        <RecaptchaLoader />
 
         {/* Footer */}
         <div className="text-center mt-8">

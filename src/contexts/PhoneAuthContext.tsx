@@ -62,9 +62,31 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
         }
       }
 
+      // Check for Firebase rate limiting (15 minute cooldown)
+      const firebaseRateLimit = localStorage.getItem('firebase_rate_limit');
+      if (firebaseRateLimit) {
+        const timeDiff = Date.now() - parseInt(firebaseRateLimit);
+        const cooldownMs = 15 * 60 * 1000; // 15 minutes
+        if (timeDiff < cooldownMs) {
+          const remainingMin = Math.ceil((cooldownMs - timeDiff) / 60000);
+          setError(`Rate limit exceeded. Please wait ${remainingMin} minute(s) before trying again.`);
+          setIsVerifying(false);
+          return false;
+        } else {
+          // Clear the rate limit if cooldown has passed
+          localStorage.removeItem('firebase_rate_limit');
+        }
+      }
+
       // Initialize reCAPTCHA with configured site key
       if (!window.recaptchaVerifier) {
         try {
+          // Clear any existing reCAPTCHA first
+          const existingContainer = document.getElementById('recaptcha-container');
+          if (existingContainer) {
+            existingContainer.innerHTML = '';
+          }
+          
           window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
             size: 'invisible', // Force invisible reCAPTCHA
             callback: () => {
@@ -110,6 +132,13 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
       return true;
     } catch (error: any) {
       console.error('Error sending OTP:', error);
+      
+      // Handle rate limiting
+      if (error.code === 'auth/too-many-requests') {
+        // Record the rate limit timestamp
+        localStorage.setItem('firebase_rate_limit', Date.now().toString());
+      }
+      
       setError(getErrorMessage(error));
       setIsVerifying(false);
       
@@ -236,7 +265,7 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
       case 'auth/invalid-phone-number':
         return 'Invalid phone number. Please check the format.';
       case 'auth/too-many-requests':
-        return 'Too many requests. Please try again later.';
+        return 'Too many requests. Please wait 15 minutes before trying again.';
       case 'auth/invalid-verification-code':
         return 'Invalid verification code. Please try again.';
       case 'auth/code-expired':

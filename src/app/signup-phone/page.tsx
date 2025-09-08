@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { usePhoneAuth } from '@/contexts/PhoneAuthContext';
 import PhoneInput from '@/components/PhoneInput';
 import OTPInput from '@/components/OTPInput';
+import RecaptchaLoader from '@/components/RecaptchaLoader';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 
 type Step = 'phone' | 'otp' | 'profile';
@@ -316,6 +317,9 @@ export default function PhoneSignupPage() {
         <p className="text-xs text-[var(--muted-foreground)] text-center mt-6">
           By continuing, you agree to our Terms of Service and Privacy Policy
         </p>
+
+        {/* reCAPTCHA Loader */}
+        <RecaptchaLoader />
       </div>
     </div>
   );
