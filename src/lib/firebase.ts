@@ -68,14 +68,7 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
   // }
 }
 
-// Log successful initialization
-console.log('🔥 Firebase initialized successfully:', {
-  projectId: firebaseConfig.projectId,
-  authDomain: firebaseConfig.authDomain,
-  environment: process.env.NODE_ENV,
-  apiKeyPrefix: firebaseConfig.apiKey?.substring(0, 10) + '...',
-  functionsRegion: 'us-central1'
-});
+// Firebase initialized successfully
 
 // Service function to fetch predefined models from Firestore
 export const getPredefinedModels = async (): Promise<PredefinedModel[]> => {
@@ -84,7 +77,6 @@ export const getPredefinedModels = async (): Promise<PredefinedModel[]> => {
     const modelSnapshot = await getDocs(modelsCollection);
     
     if (modelSnapshot.empty) {
-      console.log('No predefined models found in Firestore');
       return [];
     }
     
@@ -93,7 +85,6 @@ export const getPredefinedModels = async (): Promise<PredefinedModel[]> => {
       ...doc.data()
     })) as PredefinedModel[];
     
-    console.log(`Fetched ${modelList.length} predefined models`);
     return modelList;
   } catch (error) {
     console.error('Error fetching predefined models:', error);

@@ -37,18 +37,15 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
   ];
 
   const handleModelUpload = (url: string) => {
-    console.log('Model upload completed, URL:', url);
     setModelImageUrl(url);
     // Don't auto-advance, let user click Next button
   };
 
   const handleModelSelect = (url: string) => {
-    console.log('Model selected from library, URL:', url);
     setModelImageUrl(url);
   };
 
   const handleGarmentUpload = (url: string) => {
-    console.log('Garment upload completed, URL:', url);
     setGarmentImageUrl(url);
     // Don't auto-advance, let user click Next button
   };
@@ -92,67 +89,25 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
     setProgress(0);
 
     try {
-      // Comprehensive authentication debugging
-      console.log('🔐 === AUTHENTICATION DEBUG ===');
-      console.log('👤 User object present:', !!user);
-      console.log('👤 User UID:', user?.uid);
-      console.log('👤 User email:', user?.email);
-      console.log('📧 User emailVerified:', user?.emailVerified);
-      console.log('🔄 User refreshToken present:', !!user?.refreshToken);
-      console.log('⏰ User metadata:', user?.metadata);
-      
-      // Get current ID token for debugging
-      console.log('🎫 Getting ID token...');
       const idToken = await user.getIdToken(true); // Force refresh
-      console.log('✅ ID Token obtained (first 50 chars):', idToken.substring(0, 50) + '...');
-      console.log('🎫 ID Token length:', idToken.length);
-      
-      // Validate token format
-      const tokenParts = idToken.split('.');
-      console.log('🧩 Token parts count:', tokenParts.length);
-      
-      // Decode token header for debugging (without verification)
-      try {
-        const header = JSON.parse(atob(tokenParts[0]));
-        console.log('🎫 Token header:', header);
-      } catch (e) {
-        console.warn('⚠️ Could not decode token header:', e);
-      }
-      
-      // Test Firebase app configuration
-      console.log('🔥 Firebase config check:');
-      console.log('📱 App name:', functions.app.name);
-      console.log('🌍 Functions region:', functions._region);
-      console.log('🔗 Functions URL:', functions._url);
-      
-      // Use Firebase Cloud Function V2 (Gemini 2.5) - Auth is validated above
-      console.log('🚀 Creating httpsCallable for generateImageV2...');
       const generateImageV2 = httpsCallable(functions, 'generateImageV2');
-      
-      console.log('📞 Calling Firebase Cloud Function V2 (Gemini 2.5)...');
-      console.log('📸 Model URL:', modelImageUrl);
-      console.log('👗 Garment URL:', garmentImageUrl);
       
       // Prepare call data
       const callData = {
         modelImageUrl,
         garmentImageUrl
       };
-      console.log('📦 Call data prepared:', callData);
       
       // Simulate progress for cloud function V2
       const progressInterval = setInterval(() => {
         setProgress(prev => Math.min(prev + 10, 90));
       }, 500);
       
-      console.log('🚀 Making function call...');
-      console.log('⏰ Call timestamp:', new Date().toISOString());
       
       const result = await generateImageV2(callData);
 
       clearInterval(progressInterval);
       
-      console.log('Cloud Function V2 result:', result);
       const { resultUrl } = result.data as { resultUrl: string };
       setGeneratedImageUrl(resultUrl);
       
@@ -203,7 +158,6 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
         showNotification('✅ Image downloaded successfully!', 'success');
       } catch {
         // Fallback: open in new tab for manual download
-        console.log('CORS error, opening in new tab');
         const link = document.createElement('a');
         link.href = generatedImageUrl;
         link.target = '_blank';
@@ -242,7 +196,6 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
         showNotification('✅ Image copied to clipboard!', 'success');
       } catch {
         // Fallback to copying URL if image copy fails
-        console.log('Image copy failed, copying URL instead');
         await navigator.clipboard.writeText(generatedImageUrl);
         showNotification('✅ Image URL copied to clipboard!', 'success');
       }
@@ -300,21 +253,29 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
   };
 
   const renderStepIndicator = () => (
-    <div className="flex justify-center items-center space-x-2 md:space-x-4 mb-4 md:mb-8">
+    <div className="flex justify-center items-center space-x-1 sm:space-x-3">
       {steps.map((step, index) => {
         const stepIndex = getCurrentStepIndex();
         const isActive = index === stepIndex;
         const isCompleted = index < stepIndex;
 
-
         return (
           <div key={step.id} className="flex items-center">
-            {/* Mobile-optimized step indicator */}
-            <div className={`step-indicator-mobile ${isActive ? 'active' : isCompleted ? 'completed' : 'pending'}`}>
+            {/* Compact step indicator for mobile */}
+            <div className={`
+              w-6 h-6 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-base
+              transition-all duration-300 border-2 font-medium
+              ${isActive 
+                ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--primary-alt)] text-white border-[var(--primary)] shadow-lg scale-110' 
+                : isCompleted 
+                ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--primary-alt)] text-white border-[var(--primary)] shadow-md' 
+                : 'bg-[var(--surface)] text-[var(--muted-foreground)] border-[var(--border)]'
+              }
+            `}>
               {isCompleted ? '✓' : step.icon}
             </div>
             {index < steps.length - 1 && (
-              <div className={`w-4 h-0.5 md:w-8 md:h-1 mx-1 md:mx-2 rounded-full transition-all duration-500 ${
+              <div className={`w-3 h-0.5 sm:w-6 sm:h-1 mx-0.5 sm:mx-1 rounded-full transition-all duration-500 ${
                 isCompleted ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--primary-alt)]' : 'bg-[var(--border-strong)]'
               }`} />
             )}
@@ -653,18 +614,20 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
   };
 
   return (
-    <div className="min-h-screen bg-[var(--background)] px-4 py-8">
+    <div className="min-h-screen bg-[var(--background)] px-3 py-4 sm:px-4 sm:py-8">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12 animate-fade-in">
-          <h1 className="text-display text-gradient mb-4">AI Fashion Studio</h1>
-          <p className="text-body-lg text-[var(--muted-foreground)]">
+        {/* Compact Header for Mobile */}
+        <div className="text-center mb-6 sm:mb-12 animate-fade-in">
+          <h1 className="text-xl sm:text-display text-gradient mb-2 sm:mb-4 font-bold">AI Fashion Studio</h1>
+          <p className="text-sm sm:text-body-lg text-[var(--muted-foreground)] hidden sm:block">
             Transform your vision into reality with AI-powered fashion photography
           </p>
         </div>
 
-        {/* Step Indicator */}
-        {renderStepIndicator()}
+        {/* Step Indicator - Smaller on Mobile */}
+        <div className="mb-4 sm:mb-8">
+          {renderStepIndicator()}
+        </div>
 
         {/* Step Content */}
         <div className="animate-fade-in">

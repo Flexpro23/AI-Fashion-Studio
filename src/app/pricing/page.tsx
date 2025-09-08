@@ -55,18 +55,18 @@ export default function PricingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--background)] via-[var(--surface)] to-[var(--background-alt)] py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--background)] via-[var(--surface)] to-[var(--background-alt)] py-6 sm:py-12 px-3 sm:px-4">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-gradient mb-4">Choose Your Plan</h1>
-          <p className="text-xl text-[var(--muted-foreground)] max-w-2xl mx-auto">
+        {/* Compact Header for Mobile */}
+        <div className="text-center mb-6 sm:mb-12">
+          <h1 className="text-2xl sm:text-5xl font-bold text-gradient mb-2 sm:mb-4">Choose Your Plan</h1>
+          <p className="text-sm sm:text-xl text-[var(--muted-foreground)] max-w-2xl mx-auto hidden sm:block">
             Select the perfect plan for your AI fashion generation needs. All plans include high-quality results and full download access.
           </p>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid md:grid-cols-3 gap-8 mb-12">
+        {/* Compact Pricing Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8 mb-8 sm:mb-12">
           {pricingPlans.map((plan, index) => (
             <div
               key={index}
@@ -84,40 +84,40 @@ export default function PricingPage() {
                 </div>
               )}
 
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-[var(--foreground)] mb-2">{plan.name}</h3>
-                <p className="text-[var(--muted-foreground)] mb-4">{plan.description}</p>
+              <div className="text-center mb-4 sm:mb-6">
+                <h3 className="text-xl sm:text-2xl font-bold text-[var(--foreground)] mb-1 sm:mb-2">{plan.name}</h3>
+                <p className="text-sm sm:text-base text-[var(--muted-foreground)] mb-3 sm:mb-4 hidden sm:block">{plan.description}</p>
                 
-                <div className="mb-4">
-                  <span className="text-4xl font-bold text-gradient">{plan.price}</span>
-                  <span className="text-[var(--muted-foreground)] ml-1">JOD</span>
+                <div className="mb-2 sm:mb-4">
+                  <span className="text-2xl sm:text-4xl font-bold text-gradient">{plan.price}</span>
+                  <span className="text-[var(--muted-foreground)] ml-1 text-sm sm:text-base">JOD</span>
                 </div>
                 
-                <div className="text-[var(--primary)] font-medium">
+                <div className="text-[var(--primary)] font-medium text-sm sm:text-base">
                   {plan.generations} Generations
                 </div>
               </div>
 
-              <ul className="space-y-3 mb-8">
-                {plan.features.map((feature, featureIndex) => (
+              <ul className="space-y-2 sm:space-y-3 mb-4 sm:mb-8">
+                {plan.features.slice(0, 4).map((feature, featureIndex) => (
                   <li key={featureIndex} className="flex items-center">
-                    <svg className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 mr-2 sm:mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-[var(--foreground)]">{feature}</span>
+                    <span className="text-[var(--foreground)] text-sm sm:text-base">{feature}</span>
                   </li>
                 ))}
               </ul>
 
               <button
                 onClick={handleCallSupport}
-                className={`w-full py-3 px-6 rounded-2xl font-medium transition-all ${
+                className={`w-full py-2 sm:py-3 px-4 sm:px-6 rounded-2xl font-medium transition-all text-sm sm:text-base ${
                   plan.popular
                     ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--primary-alt)] text-white hover:shadow-lg'
                     : 'bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--primary)]/10'
                 }`}
               >
-                <svg className="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
                 Call to Purchase

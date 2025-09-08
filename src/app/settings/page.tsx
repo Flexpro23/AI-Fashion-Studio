@@ -8,6 +8,7 @@ export default function SettingsPage() {
   const { user, userData, logout } = useAuth();
   const router = useRouter();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showAccountInfo, setShowAccountInfo] = useState(false);
 
   if (!user || !userData) {
     return (
@@ -60,71 +61,112 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[var(--background)] via-[var(--surface)] to-[var(--background-alt)] pb-24">
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gradient mb-2">Settings</h1>
-          <p className="text-[var(--muted-foreground)]">Manage your account and preferences</p>
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-2xl">
+        {/* Compact Header */}
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gradient mb-1 sm:mb-2">Settings</h1>
+          <p className="text-sm sm:text-base text-[var(--muted-foreground)] hidden sm:block">Manage your account and preferences</p>
         </div>
 
-        {/* Account Sections */}
-        <div className="space-y-6">
-          {sections.map((section, sectionIndex) => (
-            <div key={sectionIndex} className="card-step">
-              <h2 className="text-xl font-semibold text-[var(--foreground)] mb-4 flex items-center">
-                <span className="mr-2">{section.title === 'Account Information' ? '👤' : '⚡'}</span>
-                {section.title}
-              </h2>
-              
-              <div className="space-y-3">
-                {section.items.map((item, itemIndex) => (
+        {/* Compact Sections */}
+        <div className="space-y-4 sm:space-y-6">
+          {/* Collapsible Account Information */}
+          <div className="card-step">
+            <button
+              onClick={() => setShowAccountInfo(!showAccountInfo)}
+              className="w-full flex items-center justify-between p-2 sm:p-4 hover:bg-[var(--hover)] rounded-xl transition-all duration-200"
+            >
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <span className="text-xl sm:text-2xl">👤</span>
+                <span className="font-semibold text-[var(--foreground)] text-sm sm:text-xl">Account Information</span>
+              </div>
+              <svg 
+                className={`w-4 h-4 sm:w-5 sm:h-5 text-[var(--muted-foreground)] transition-transform duration-200 ${
+                  showAccountInfo ? 'rotate-180' : ''
+                }`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {showAccountInfo && (
+              <div className="space-y-2 sm:space-y-3 mt-3 sm:mt-4 px-2 sm:px-4 pb-2 sm:pb-4">
+                {sections[0].items.map((item, itemIndex) => (
                   <div 
                     key={itemIndex} 
-                    className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${
-                      item.highlight === 'success' 
-                        ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
-                        : item.highlight === 'warning'
-                        ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
-                        : 'bg-[var(--muted)] border-[var(--border)]'
-                    }`}
+                    className="flex items-center justify-between p-2 sm:p-3 rounded-xl bg-[var(--muted)] border border-[var(--border)]"
                   >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{item.icon}</span>
-                      <span className="font-medium text-[var(--foreground)]">{item.label}</span>
+                    <div className="flex items-center space-x-2 sm:space-x-3">
+                      <span className="text-base sm:text-xl">{item.icon}</span>
+                      <span className="font-medium text-[var(--foreground)] text-xs sm:text-sm">{item.label}</span>
                     </div>
-                    <span className={`font-semibold ${
-                      item.highlight === 'success' 
-                        ? 'text-green-600 dark:text-green-400'
-                        : item.highlight === 'warning'
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-[var(--muted-foreground)]'
-                    }`}>
+                    <span className="text-[var(--muted-foreground)] text-xs sm:text-sm font-medium">
                       {item.value}
                     </span>
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+
+          {/* Generation Status - Always Visible */}
+          <div className="card-step">
+            <h2 className="text-lg sm:text-xl font-semibold text-[var(--foreground)] mb-3 sm:mb-4 flex items-center p-2 sm:p-0">
+              <span className="mr-2 text-xl sm:text-2xl">⚡</span>
+              Generation Status
+            </h2>
+            
+            <div className="space-y-2 sm:space-y-3">
+              {sections[1].items.map((item, itemIndex) => (
+                <div 
+                  key={itemIndex} 
+                  className={`flex items-center justify-between p-3 sm:p-4 rounded-xl border transition-all duration-200 ${
+                    item.highlight === 'success' 
+                      ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
+                      : item.highlight === 'warning'
+                      ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
+                      : 'bg-[var(--muted)] border-[var(--border)]'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <span className="text-base sm:text-xl">{item.icon}</span>
+                    <span className="font-medium text-[var(--foreground)] text-sm sm:text-base">{item.label}</span>
+                  </div>
+                  <span className={`font-semibold text-sm sm:text-base ${
+                    item.highlight === 'success' 
+                      ? 'text-green-600 dark:text-green-400'
+                      : item.highlight === 'warning'
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-[var(--muted-foreground)]'
+                  }`}>
+                    {item.value}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
 
           {/* Quick Actions */}
           <div className="card-step">
-            <h2 className="text-xl font-semibold text-[var(--foreground)] mb-4 flex items-center">
-              <span className="mr-2">🎯</span>
+            <h2 className="text-lg sm:text-xl font-semibold text-[var(--foreground)] mb-3 sm:mb-4 flex items-center p-2 sm:p-0">
+              <span className="mr-2 text-xl sm:text-2xl">🎯</span>
               Quick Actions
             </h2>
             
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {/* View Plans */}
               <button
                 onClick={() => router.push('/pricing')}
-                className="w-full flex items-center justify-between p-4 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/20 hover:bg-[var(--primary)]/20 transition-all duration-200"
+                className="w-full flex items-center justify-between p-3 sm:p-4 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/20 hover:bg-[var(--primary)]/20 transition-all duration-200"
               >
-                <div className="flex items-center space-x-3">
-                  <span className="text-2xl">💎</span>
-                  <span className="font-medium text-[var(--foreground)]">View Plans & Pricing</span>
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                  <span className="text-base sm:text-xl">💎</span>
+                  <span className="font-medium text-[var(--foreground)] text-sm sm:text-base">View Plans & Pricing</span>
                 </div>
-                <svg className="w-5 h-5 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
@@ -132,13 +174,13 @@ export default function SettingsPage() {
               {/* Contact Support */}
               <button
                 onClick={() => router.push('/contact')}
-                className="w-full flex items-center justify-between p-4 rounded-xl bg-[var(--muted)] border border-[var(--border)] hover:bg-[var(--hover)] transition-all duration-200"
+                className="w-full flex items-center justify-between p-3 sm:p-4 rounded-xl bg-[var(--muted)] border border-[var(--border)] hover:bg-[var(--hover)] transition-all duration-200"
               >
-                <div className="flex items-center space-x-3">
-                  <span className="text-2xl">📞</span>
-                  <span className="font-medium text-[var(--foreground)]">Contact Support</span>
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                  <span className="text-base sm:text-xl">📞</span>
+                  <span className="font-medium text-[var(--foreground)] text-sm sm:text-base">Contact Support</span>
                 </div>
-                <svg className="w-5 h-5 text-[var(--muted-foreground)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--muted-foreground)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>

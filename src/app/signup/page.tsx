@@ -32,14 +32,6 @@ export default function SignUpPage() {
 
     // Debug environment variables in development
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 Environment Variables Check:', {
-        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? '✅ Set' : '❌ Missing',
-        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? '✅ Set' : '❌ Missing',
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? '✅ Set' : '❌ Missing',
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? '✅ Set' : '❌ Missing',
-        messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ? '✅ Set' : '❌ Missing',
-        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ? '✅ Set' : '❌ Missing',
-      });
     }
 
     // Validate form
@@ -96,7 +88,6 @@ export default function SignUpPage() {
         accountStatus: 'active'
       });
 
-      console.log('User created successfully:', user.uid);
       
       // Redirect to login or main app
       router.push('/');
