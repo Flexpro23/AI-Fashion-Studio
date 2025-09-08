@@ -1,14 +1,11 @@
 const admin = require("firebase-admin");
 const functions = require("firebase-functions");
-const { GoogleGenAI } = require("@google/genai");
+const { GoogleAuth } = require("google-auth-library");
+const axios = require("axios");
 
-// Initialize Firebase Admin - use default credentials in Cloud Functions environment
+// Initialize Firebase Admin with proper configuration for 2nd Gen functions
 if (!admin.apps.length) {
-  // Always use Application Default Credentials in Cloud Functions
-  // The service account is configured at the Cloud Functions level
-  admin.initializeApp({
-    projectId: 'ai-fashion-studio-demo'
-  });
+  admin.initializeApp();
 }
 
 const db = admin.firestore();
@@ -16,81 +13,63 @@ const storage = admin.storage();
 
 // Helper function to download images from Firebase Storage URLs and convert to base64
 async function downloadImageFromUrl(url) {
-  console.log('Downloading image from URL:', url);
-  
+  console.log(`⬇️ Downloading image from URL: ${url}`);
   try {
     const bucket = storage.bucket();
-    
+    let filePath;
+
     if (url.startsWith('gs://')) {
-      // Parse the gs:// URL to get the file path
-      const filePath = url.replace(/^gs:\/\/[^\/]+\//, '');
-      console.log('Parsed gs:// file path:', filePath);
-      const file = bucket.file(filePath);
-      const [buffer] = await file.download();
-      return buffer;
+      filePath = url.replace(/^gs:\/\/[^\/]+\//, '');
     } else if (url.includes('firebasestorage.googleapis.com')) {
-      // Parse the https download URL to extract the file path
       const urlObj = new URL(url);
-      console.log('URL pathname:', urlObj.pathname);
-      
-      // Firebase Storage URLs have format: /v0/b/{bucket}/o/{path}?{params}
       let pathMatch = urlObj.pathname.match(/\/v0\/b\/[^\/]+\/o\/(.+?)(?:\?|$)/);
       if (!pathMatch) {
         pathMatch = urlObj.pathname.match(/\/o\/(.+?)(?:\?|$)/);
       }
-      
       if (!pathMatch) {
-        console.error('Failed to parse Firebase Storage URL:', url);
         throw new Error(`Invalid Firebase Storage URL format: ${urlObj.pathname}`);
       }
-      
-      const encodedPath = pathMatch[1];
-      const filePath = decodeURIComponent(encodedPath);
-      console.log('Parsed file path:', filePath);
-      
-      const file = bucket.file(filePath);
-      const [buffer] = await file.download();
-      return buffer;
+      filePath = decodeURIComponent(pathMatch[1]);
     } else {
-      console.error('Unsupported URL format:', url);
       throw new Error('Unsupported URL format. Expected gs:// or Firebase Storage download URL');
     }
+
+    console.log(`📂 Parsed file path: ${filePath}`);
+    const file = bucket.file(filePath);
+    const [buffer] = await file.download();
+    console.log(`✅ Image downloaded: ${filePath}`);
+    return buffer;
   } catch (error) {
-    console.error('Error downloading image:', error);
+    console.error('❌ Error downloading image:', error);
     throw error;
   }
 }
 
-// Simple test function
-exports.testSimple = functions.https.onCall(async (data, context) => {
-  console.log("🧪 === SIMPLE TEST FUNCTION CALLED ===");
-  console.log("⏰ Timestamp:", new Date().toISOString());
+// Test function for basic authentication
+exports.testAuth = functions.https.onCall(async (data, context) => {
+  console.log("Test function called");
+  console.log("Auth context:", context?.auth?.uid ? "Authenticated" : "Not authenticated");
   
   if (!context.auth) {
-    console.error("❌ No auth");
-    throw new functions.https.HttpsError('unauthenticated', 'Not authenticated');
+    throw new functions.https.HttpsError('unauthenticated', 'Test failed: Not authenticated');
   }
-
+  
+  console.log("User ID:", context.auth.uid);
   console.log("✅ Success!");
   return { success: true, message: "Test passed!" };
 });
 
-// Main image generation function using Gemini 2.5 Flash Image Preview
-exports.generateImageV2 = functions.region('us-central1').https.onCall(async (data, context) => {
+// Main image generation function using Gemini 2.5 Flash Image Preview  
+exports.generateImageV2 = functions.https.onCall(async (data, context) => {
   console.log("🚀 === GENERATEIMAGEV2 FUNCTION STARTED ===");
   console.log("⏰ Timestamp:", new Date().toISOString());
-  
-  try {
-    console.log("📝 Data received:", JSON.stringify(data, null, 2));
-    console.log("🔐 Auth context:", JSON.stringify(context, null, 2));
-    console.log("🔐 Auth object:", JSON.stringify(context?.auth, null, 2));
-    console.log("🔐 Raw context keys:", Object.keys(context || {}));
+  console.log("Function called with data keys:", Object.keys(data || {}));
+  console.log("Auth context:", context?.auth?.uid ? "Authenticated" : "Not authenticated");
 
+  try {
     // CRITICAL: Check if user is authenticated
     if (!context || !context.auth || !context.auth.uid) {
       console.error("❌ AUTHENTICATION FAILED: No auth context provided");
-      console.error("❌ Context:", context);
-      console.error("❌ Auth:", context?.auth);
       throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
     }
 
@@ -110,63 +89,183 @@ exports.generateImageV2 = functions.region('us-central1').https.onCall(async (da
     }
 
     console.log("⬇️ Starting image download...");
-    
-    // Download images
+
+    // Download images and convert to base64
     const modelImageBuffer = await downloadImageFromUrl(modelImageUrl);
     const garmentImageBuffer = await downloadImageFromUrl(garmentImageUrl);
-    
+
     console.log("✅ Images downloaded successfully");
     console.log(`📏 Model image size: ${modelImageBuffer.length} bytes`);
     console.log(`📏 Garment image size: ${garmentImageBuffer.length} bytes`);
-    
+
     // Convert to base64
     const modelBase64 = modelImageBuffer.toString('base64');
     const garmentBase64 = garmentImageBuffer.toString('base64');
-    
+
     console.log(`📊 Model base64 length: ${modelBase64.length}`);
     console.log(`📊 Garment base64 length: ${garmentBase64.length}`);
+
+    console.log("🔑 Starting image generation process...");
     
-    console.log("🤖 Initializing Gemini AI...");
-    
-    // Initialize Google GenAI with Vertex AI
-    const ai = new GoogleGenAI({
-      vertexai: true,
-      project: 'ai-fashion-studio-demo',
-      location: 'global'
+    // Use Google Auth library to get credentials (like your working function)
+    const auth = new GoogleAuth({
+      scopes: ["https://www.googleapis.com/auth/cloud-platform"],
     });
+    const client = await auth.getClient();
+    const accessToken = await client.getAccessToken();
     
-    console.log("✅ Gemini AI initialized successfully");
+    console.log("✅ Successfully obtained access token");
     
-    // FOR TESTING: Return success without actual generation
-    console.log("🧪 TEST MODE: Returning success without generation");
-    return {
-      success: true,
-      message: "Function reached this point successfully!",
-      userId: userId,
-      modelUrl: modelImageUrl,
-      garmentUrl: garmentImageUrl
+    // Vertex AI API endpoint for Gemini 2.5 Flash Image Preview
+    const projectId = "ai-fashion-studio-demo";
+    const location = "us-central1";
+    const modelId = "gemini-2.5-flash-image-preview";
+    const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelId}:generateContent`;
+
+    console.log("🌐 Using endpoint:", endpoint);
+
+    // Prepare request data with enhanced prompt
+    const requestData = {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: `Create a high-quality, photorealistic image of the person from the first image wearing the clothing item from the second image. 
+
+Requirements:
+- The person should be wearing the garment naturally and it should fit properly
+- Maintain the person's pose, facial features, and body proportions from the original image
+- The clothing should look realistic and well-fitted
+- Preserve the style, color, and texture of the garment from the second image
+- Ensure professional lighting and composition
+- The background should be clean and neutral
+- Show the complete outfit in a natural, appealing way
+
+Make the final result look like a professional fashion photograph with the person naturally wearing the new clothing.`,
+            },
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: modelBase64,
+              },
+            },
+            {
+              inlineData: {
+                mimeType: "image/jpeg", 
+                data: garmentBase64,
+              },
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        topP: 0.9,
+        maxOutputTokens: 8192,
+        responseModalities: ["TEXT", "IMAGE"],
+      },
+      safetySettings: [
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "OFF" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "OFF" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "OFF" },
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "OFF" },
+        { category: "HARM_CATEGORY_IMAGE_HATE", threshold: "OFF" },
+        { category: "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", threshold: "OFF" },
+        { category: "HARM_CATEGORY_IMAGE_HARASSMENT", threshold: "OFF" },
+        { category: "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT", threshold: "OFF" },
+      ],
     };
+
+    console.log("📡 Making API request to Vertex AI...");
+
+    // Make the API request (like your working function)
+    const response = await axios.post(endpoint, requestData, {
+      headers: {
+        Authorization: `Bearer ${accessToken.token}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 120000, // 2 minute timeout for image generation
+    });
+
+    console.log("✅ Received response from Vertex AI");
+
+    // Process the response (like your working function)
+    if (response.data && response.data.candidates && response.data.candidates.length > 0) {
+      const parts = response.data.candidates[0].content.parts || [];
+      for (const part of parts) {
+        if (part.inlineData) {
+          console.log("🎨 Successfully generated image");
+          
+          // Save the generated image to Firebase Storage
+          const generatedImageBase64 = part.inlineData.data;
+          const imageBuffer = Buffer.from(generatedImageBase64, 'base64');
+          
+          const fileName = `generated/${userId}/${Date.now()}_generated.jpg`;
+          const bucket = storage.bucket();
+          const file = bucket.file(fileName);
+          
+          await file.save(imageBuffer, {
+            metadata: {
+              contentType: part.inlineData.mimeType || 'image/jpeg',
+              metadata: {
+                uploadedBy: userId,
+                generatedAt: new Date().toISOString(),
+                modelUsed: 'gemini-2.5-flash-image-preview'
+              }
+            }
+          });
+          
+          // Make the file publicly accessible
+          await file.makePublic();
+          
+          const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+          
+          console.log("💾 Image saved to Firebase Storage:", publicUrl);
+          
+          // Update user's generation count
+          const userRef = db.collection('users').doc(userId);
+          await userRef.update({
+            totalGenerations: admin.firestore.FieldValue.increment(1),
+            remainingGenerations: admin.firestore.FieldValue.increment(-1),
+            lastGeneratedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          
+          console.log("📊 Updated user generation count");
+          
+          return {
+            success: true,
+            resultUrl: publicUrl,
+            message: "Image generated successfully!"
+          };
+        }
+      }
+    }
+
+    console.warn("⚠️ No image data found in response");
+    throw new functions.https.HttpsError("internal", "Image generation failed: No image returned by model.");
 
   } catch (error) {
     console.error("💥 === GENERATION ERROR ===");
     console.error("🔍 Error type:", error.constructor.name);
     console.error("📝 Error message:", error.message);
-    console.error("📚 Error stack:", error.stack);
-    console.error("🔧 Full error:", error);
-    
-    // Check for specific error types
-    if (error.message && error.message.includes('Authentication')) {
-      console.error("🔐 Authentication error detected");
-      throw new functions.https.HttpsError("unauthenticated", `Authentication failed: ${error.message}`);
-    } else if (error.message && error.message.includes('Permission denied')) {
-      console.error("🚫 Permission error detected");
-      throw new functions.https.HttpsError("permission-denied", `Permission denied: ${error.message}`);
-    } else if (error.message && error.message.includes('API key')) {
-      console.error("🗝️ API key error detected");
-      throw new functions.https.HttpsError("failed-precondition", `API configuration error: ${error.message}`);
-    } else {
-      console.error("⚠️ General error - throwing as internal");
-      throw new functions.https.HttpsError("internal", `Generation failed: ${error.message}`);
+    console.error("📚 Error details:", error.response?.data || error);
+
+    let message = "Image generation failed due to an internal error.";
+    let errorCode = "internal";
+
+    if (error.response?.status === 401) {
+      message = "Authentication failed. Please check API permissions.";
+      errorCode = "unauthenticated";
+    } else if (error.response?.status === 403) {
+      message = "Access denied. Please check API permissions and quotas.";
+      errorCode = "permission-denied";
+    } else if (error.response?.data) {
+      message += ` Details: ${JSON.stringify(error.response.data)}`;
+    } else if (error.message) {
+      message += ` Details: ${error.message}`;
     }
+    
+    throw new functions.https.HttpsError(errorCode, message);
   }
 });
