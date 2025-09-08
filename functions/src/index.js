@@ -1,7 +1,6 @@
 const admin = require("firebase-admin");
 const functions = require("firebase-functions");
-const { GoogleAuth } = require("google-auth-library");
-const axios = require("axios");
+const { GoogleGenAI } = require("@google/genai");
 
 // Initialize Firebase Admin with proper configuration for 2nd Gen functions
 if (!admin.apps.length) {
@@ -129,25 +128,46 @@ exports.generateImageV2 = functions.https.onCall(async (data, context) => {
 
     console.log("🔑 Starting image generation process...");
     
-    // Use Google Auth library to get credentials (like your working function)
-    const auth = new GoogleAuth({
-      scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+    // Initialize Vertex AI with GoogleGenAI (correct format from Vertex website)
+    const ai = new GoogleGenAI({
+      vertexai: true,
+      project: 'ai-fashion-studio-demo',
+      location: 'global'
     });
-    const client = await auth.getClient();
-    const accessToken = await client.getAccessToken();
     
-    console.log("✅ Successfully obtained access token");
+    console.log("✅ GoogleGenAI initialized successfully");
     
-    // Vertex AI API endpoint for Gemini 2.5 Flash Image Preview
-    const projectId = "ai-fashion-studio-demo";
-    const location = "us-central1";
-    const modelId = "gemini-2.5-flash-image-preview";
-    const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelId}:generateContent`;
+    const model = 'gemini-2.5-flash-image-preview';
+    
+    // Set up generation config (matching Vertex format)
+    const generationConfig = {
+      maxOutputTokens: 32768,
+      temperature: 1,
+      topP: 0.95,
+      responseModalities: ["TEXT", "IMAGE"],
+      safetySettings: [
+        {
+          category: 'HARM_CATEGORY_HATE_SPEECH',
+          threshold: 'OFF',
+        },
+        {
+          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+          threshold: 'OFF',
+        },
+        {
+          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+          threshold: 'OFF',
+        },
+        {
+          category: 'HARM_CATEGORY_HARASSMENT',
+          threshold: 'OFF',
+        }
+      ],
+    };
 
-    console.log("🌐 Using endpoint:", endpoint);
-
-    // Prepare request data with enhanced prompt
-    const requestData = {
+    // Prepare request using correct format
+    const req = {
+      model: model,
       contents: [
         {
           role: "user",
@@ -181,87 +201,82 @@ Make the final result look like a professional fashion photograph with the perso
           ],
         },
       ],
-      generationConfig: {
-        temperature: 0.7,
-        topP: 0.9,
-        maxOutputTokens: 8192,
-        responseModalities: ["TEXT", "IMAGE"],
-      },
-      safetySettings: [
-        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "OFF" },
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "OFF" },
-        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "OFF" },
-        { category: "HARM_CATEGORY_HARASSMENT", threshold: "OFF" },
-        { category: "HARM_CATEGORY_IMAGE_HATE", threshold: "OFF" },
-        { category: "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", threshold: "OFF" },
-        { category: "HARM_CATEGORY_IMAGE_HARASSMENT", threshold: "OFF" },
-        { category: "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT", threshold: "OFF" },
-      ],
+      config: generationConfig,
     };
 
     console.log("📡 Making API request to Vertex AI...");
 
-    // Make the API request (like your working function)
-    const response = await axios.post(endpoint, requestData, {
-      headers: {
-        Authorization: `Bearer ${accessToken.token}`,
-        "Content-Type": "application/json",
-      },
-      timeout: 120000, // 2 minute timeout for image generation
-    });
-
+    // Use the correct API method
+    const streamingResp = await ai.models.generateContentStream(req);
+    
     console.log("✅ Received response from Vertex AI");
-
-    // Process the response (like your working function)
-    if (response.data && response.data.candidates && response.data.candidates.length > 0) {
-      const parts = response.data.candidates[0].content.parts || [];
-      for (const part of parts) {
-        if (part.inlineData) {
-          console.log("🎨 Successfully generated image");
-          
-          // Save the generated image to Firebase Storage
-          const generatedImageBase64 = part.inlineData.data;
-          const imageBuffer = Buffer.from(generatedImageBase64, 'base64');
-          
-          const fileName = `generated/${userId}/${Date.now()}_generated.jpg`;
-          const bucket = storage.bucket();
-          const file = bucket.file(fileName);
-          
-          await file.save(imageBuffer, {
-            metadata: {
-              contentType: part.inlineData.mimeType || 'image/jpeg',
-              metadata: {
-                uploadedBy: userId,
-                generatedAt: new Date().toISOString(),
-                modelUsed: 'gemini-2.5-flash-image-preview'
-              }
+    
+    let generatedImageBase64 = null;
+    let mimeType = 'image/jpeg';
+    
+    // Process streaming response
+    for await (const chunk of streamingResp) {
+      if (chunk.text) {
+        console.log("📝 Text response:", chunk.text);
+      } else {
+        console.log("🎨 Processing chunk:", JSON.stringify(chunk));
+        // Look for image data in the chunk
+        if (chunk.candidates && chunk.candidates[0] && chunk.candidates[0].content && chunk.candidates[0].content.parts) {
+          for (const part of chunk.candidates[0].content.parts) {
+            if (part.inlineData && part.inlineData.data) {
+              generatedImageBase64 = part.inlineData.data;
+              mimeType = part.inlineData.mimeType || 'image/jpeg';
+              console.log("🎨 Found generated image data");
+              break;
             }
-          });
-          
-          // Make the file publicly accessible
-          await file.makePublic();
-          
-          const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-          
-          console.log("💾 Image saved to Firebase Storage:", publicUrl);
-          
-          // Update user's generation count
-          const userRef = db.collection('users').doc(userId);
-          await userRef.update({
-            totalGenerations: admin.firestore.FieldValue.increment(1),
-            remainingGenerations: admin.firestore.FieldValue.increment(-1),
-            lastGeneratedAt: admin.firestore.FieldValue.serverTimestamp()
-          });
-          
-          console.log("📊 Updated user generation count");
-          
-          return {
-            success: true,
-            resultUrl: publicUrl,
-            message: "Image generated successfully!"
-          };
+          }
         }
       }
+    }
+
+    if (generatedImageBase64) {
+      console.log("🎨 Successfully generated image");
+      
+      // Save the generated image to Firebase Storage
+      const imageBuffer = Buffer.from(generatedImageBase64, 'base64');
+      
+      const fileName = `generated/${userId}/${Date.now()}_generated.jpg`;
+      const bucket = storage.bucket();
+      const file = bucket.file(fileName);
+      
+      await file.save(imageBuffer, {
+        metadata: {
+          contentType: mimeType,
+          metadata: {
+            uploadedBy: userId,
+            generatedAt: new Date().toISOString(),
+            modelUsed: 'gemini-2.5-flash-image-preview'
+          }
+        }
+      });
+      
+      // Make the file publicly accessible
+      await file.makePublic();
+      
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+      
+      console.log("💾 Image saved to Firebase Storage:", publicUrl);
+      
+      // Update user's generation count
+      const userRef = db.collection('users').doc(userId);
+      await userRef.update({
+        totalGenerations: admin.firestore.FieldValue.increment(1),
+        remainingGenerations: admin.firestore.FieldValue.increment(-1),
+        lastGeneratedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      
+      console.log("📊 Updated user generation count");
+      
+      return {
+        success: true,
+        resultUrl: publicUrl,
+        message: "Image generated successfully!"
+      };
     }
 
     console.warn("⚠️ No image data found in response");
