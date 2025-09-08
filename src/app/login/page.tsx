@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCustomPhoneAuth } from '@/contexts/PhoneAuthContext';
+import { usePhoneAuth } from '@/contexts/PhoneAuthContext';
 import PhoneInput from '@/components/PhoneInput';
 
 // Fashion icon component
@@ -33,7 +33,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { loginWithEmailPassword } = useAuth();
-  const { loginWithPhone } = useCustomPhoneAuth();
+  const { loginWithPhone } = usePhoneAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
