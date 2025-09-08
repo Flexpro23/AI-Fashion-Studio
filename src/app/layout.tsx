@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from '@/contexts/AuthContext';
+import { PhoneAuthProvider } from '@/contexts/PhoneAuthContext';
 import Navigation from '@/components/Navigation';
 import BottomNavigation from '@/components/BottomNavigation';
 
@@ -32,11 +33,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <Navigation />
-          <main className="min-h-screen">
-            {children}
-          </main>
-          <BottomNavigation />
+          <PhoneAuthProvider>
+            <Navigation />
+            <main className="min-h-screen">
+              {children}
+            </main>
+            <BottomNavigation />
+          </PhoneAuthProvider>
         </AuthProvider>
       </body>
     </html>
