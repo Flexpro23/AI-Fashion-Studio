@@ -165,8 +165,8 @@ export default function ImageUploader({
           src={currentImageUrl} 
           alt={`${type} preview`} 
           className="relative w-full h-full object-cover rounded-3xl border-2 border-[var(--border-strong)] shadow-xl transition-all duration-300 group-hover:scale-105 group-hover:shadow-2xl" 
-          onLoad={() => {}
-          onError={(e) => console.error(`${type} image failed to load:`, currentImageUrl, e)}
+          onLoad={() => {}}
+          onError={(e) => {}}
         />
 
         {/* Image Info Overlay */}

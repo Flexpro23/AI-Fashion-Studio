@@ -237,8 +237,28 @@ Make the final result look like a professional fashion photograph with the perso
     if (generatedImageBase64) {
       console.log("🎨 Successfully generated image");
       
-      // Save the generated image to Firebase Storage
-      const imageBuffer = Buffer.from(generatedImageBase64, 'base64');
+      // Convert base64 to buffer and crop to remove watermark
+      let imageBuffer = Buffer.from(generatedImageBase64, 'base64');
+      
+      // Crop bottom-right corner to remove Gemini logo (remove bottom 10% and right 15%)
+      try {
+        const sharp = require('sharp');
+        const image = sharp(imageBuffer);
+        const metadata = await image.metadata();
+        
+        const cropWidth = Math.floor(metadata.width * 0.85); // Remove right 15%
+        const cropHeight = Math.floor(metadata.height * 0.90); // Remove bottom 10%
+        
+        imageBuffer = await image
+          .extract({ left: 0, top: 0, width: cropWidth, height: cropHeight })
+          .jpeg({ quality: 95 })
+          .toBuffer();
+          
+        console.log("✂️ Image cropped to remove watermark");
+      } catch (cropError) {
+        console.warn("⚠️ Failed to crop image, using original:", cropError.message);
+        // If cropping fails, use original image
+      }
       
       const fileName = `generated/${userId}/${Date.now()}_generated.jpg`;
       const bucket = storage.bucket();
@@ -258,9 +278,31 @@ Make the final result look like a professional fashion photograph with the perso
       // Make the file publicly accessible
       await file.makePublic();
       
-      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+      // Get Firebase download URL to avoid CORS issues
+      const [downloadUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: '03-09-2491' // Far future date for permanent access
+      });
       
-      console.log("💾 Image saved to Firebase Storage:", publicUrl);
+      console.log("💾 Image saved to Firebase Storage:", downloadUrl);
+      
+      // Save generation document to Firestore
+      const generationDoc = {
+        userId: userId,
+        imageUrl: downloadUrl,
+        modelImageUrl: modelImageUrl,
+        garmentImageUrl: garmentImageUrl,
+        modelUsed: 'gemini-2.5-flash-image-preview',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        metadata: {
+          fileName: fileName,
+          mimeType: mimeType,
+          generatedAt: new Date().toISOString()
+        }
+      };
+      
+      await db.collection('generations').add(generationDoc);
+      console.log("📝 Generation document saved to Firestore");
       
       // Update user's generation count
       const userRef = db.collection('users').doc(userId);
@@ -274,7 +316,7 @@ Make the final result look like a professional fashion photograph with the perso
       
       return {
         success: true,
-        resultUrl: publicUrl,
+        resultUrl: downloadUrl,
         message: "Image generated successfully!"
       };
     }
