@@ -278,18 +278,14 @@ Make the final result look like a professional fashion photograph with the perso
       // Make the file publicly accessible
       await file.makePublic();
       
-      // Get Firebase download URL to avoid CORS issues
-      const [downloadUrl] = await file.getSignedUrl({
-        action: 'read',
-        expires: '03-09-2491' // Far future date for permanent access
-      });
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
       
-      console.log("💾 Image saved to Firebase Storage:", downloadUrl);
+      console.log("💾 Image saved to Firebase Storage:", publicUrl);
       
       // Save generation document to Firestore
       const generationDoc = {
         userId: userId,
-        imageUrl: downloadUrl,
+        imageUrl: publicUrl,
         modelImageUrl: modelImageUrl,
         garmentImageUrl: garmentImageUrl,
         modelUsed: 'gemini-2.5-flash-image-preview',
@@ -316,7 +312,7 @@ Make the final result look like a professional fashion photograph with the perso
       
       return {
         success: true,
-        resultUrl: downloadUrl,
+        resultUrl: publicUrl,
         message: "Image generated successfully!"
       };
     }
