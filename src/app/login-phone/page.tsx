@@ -138,7 +138,7 @@ export default function PhoneLoginPage() {
 
               <div className="text-center">
                 <p className="text-sm text-[var(--muted-foreground)]">
-                  Don't have an account?{' '}
+                  Don&apos;t have an account?{' '}
                   <button
                     onClick={() => router.push('/signup-phone')}
                     className="text-[var(--primary)] hover:text-[var(--primary-alt)] font-medium"
@@ -206,6 +206,8 @@ export default function PhoneLoginPage() {
         <p className="text-xs text-[var(--muted-foreground)] text-center mt-6">
           By signing in, you agree to our Terms of Service and Privacy Policy
         </p>
+
+        
       </div>
     </div>
   );

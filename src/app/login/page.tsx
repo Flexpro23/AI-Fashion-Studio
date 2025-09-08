@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePhoneAuth } from '@/contexts/PhoneAuthContext';
 import PhoneInput from '@/components/PhoneInput';
-import RecaptchaLoader from '@/components/RecaptchaLoader';
 
 // Fashion icon component
 const FashionIcon = ({ className }: { className?: string }) => (
@@ -96,7 +95,6 @@ export default function LoginPage() {
                 value={phoneNumber}
                 onChange={setPhoneNumber}
                 placeholder="Enter your phone number"
-                className="w-full"
               />
             </div>
 
@@ -172,7 +170,7 @@ export default function LoginPage() {
 
           <div className="text-center pt-4">
             <p className="text-sm text-[var(--muted-foreground)]">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <button
                 type="button"
                 onClick={() => router.push('/signup-phone')}
@@ -183,9 +181,6 @@ export default function LoginPage() {
             </p>
           </div>
         </form>
-
-        {/* reCAPTCHA Loader */}
-        <RecaptchaLoader />
 
         {/* Footer */}
         <div className="text-center mt-8">

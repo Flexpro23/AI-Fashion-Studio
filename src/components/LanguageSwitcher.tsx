@@ -33,7 +33,7 @@ export default function LanguageSwitcher({ className = '' }: LanguageSwitcherPro
       : 'Language changed to English';
     
     // Simple notification (you can replace with a proper toast system)
-    if (window.alert) {
+    if (typeof window !== 'undefined') {
       setTimeout(() => {
         alert(message);
       }, 100);

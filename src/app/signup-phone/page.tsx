@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { usePhoneAuth } from '@/contexts/PhoneAuthContext';
 import PhoneInput from '@/components/PhoneInput';
 import OTPInput from '@/components/OTPInput';
-import RecaptchaLoader from '@/components/RecaptchaLoader';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 
 type Step = 'phone' | 'otp' | 'profile';
@@ -17,9 +16,11 @@ export default function PhoneSignupPage() {
     isOtpSent, 
     isVerifying, 
     error, 
+    isTestMode,
     sendOTP, 
     verifyOTP, 
-    resetState 
+    resetState,
+    toggleTestMode
   } = usePhoneAuth();
 
   const [step, setStep] = useState<Step>('phone');
@@ -161,6 +162,32 @@ export default function PhoneSignupPage() {
                   disabled={isVerifying}
                 />
               </div>
+
+              {/* Test Mode Toggle */}
+              {process.env.NODE_ENV !== 'production' && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-blue-700 dark:text-blue-300">
+                      Test Mode: {isTestMode ? 'ON (Use test numbers)' : 'OFF (Real SMS)'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={toggleTestMode}
+                      className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300 rounded"
+                    >
+                      Toggle
+                    </button>
+                  </div>
+                  {isTestMode && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                      Use test numbers from Firebase Console → Authentication → Phone numbers for testing
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* reCAPTCHA Container */}
+              <div id="recaptcha-container"></div>
 
               {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -318,8 +345,8 @@ export default function PhoneSignupPage() {
           By continuing, you agree to our Terms of Service and Privacy Policy
         </p>
 
-        {/* reCAPTCHA Loader */}
-        <RecaptchaLoader />
+        
+
       </div>
     </div>
   );

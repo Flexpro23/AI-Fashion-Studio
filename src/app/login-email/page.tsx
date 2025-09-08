@@ -148,7 +148,7 @@ export default function EmailLoginPage() {
 
           <div className="text-center pt-4">
             <p className="text-sm text-[var(--muted-foreground)]">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <button
                 type="button"
                 onClick={() => router.push('/signup')}

@@ -3,6 +3,7 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator, collection, getDocs } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { PredefinedModel } from '@/types';
 
 // Validate required environment variables
@@ -43,11 +44,67 @@ const firebaseConfig = {
 // Initialize Firebase app (prevent duplicate initialization)
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
+// Initialize App Check with reCAPTCHA Enterprise
+let appCheck = null;
+if (typeof window !== 'undefined') {
+  try {
+    const recaptchaKey = process.env.NEXT_PUBLIC_FIREBASE_RECAPTCHA_ENTERPRISE_SITE_KEY;
+
+    // Enable App Check debug token for local dev if none registered
+    if (process.env.NODE_ENV !== 'production') {
+      // Use existing token if set in localStorage, otherwise auto-generate
+      const existingToken = localStorage.getItem('APP_CHECK_DEBUG_TOKEN');
+      // @ts-expect-error: debug token is an undocumented global
+      self.FIREBASE_APPCHECK_DEBUG_TOKEN = existingToken || true;
+      console.log('🔧 App Check debug token enabled for development');
+    }
+
+    // Ensure the reCAPTCHA Enterprise script is loaded with the site key
+    if (recaptchaKey) {
+      const hasEnterpriseScript = Array.from(document.getElementsByTagName('script')).some(
+        (s) => s.src.includes('recaptcha/enterprise.js')
+      );
+      if (!hasEnterpriseScript) {
+        const script = document.createElement('script');
+        script.src = `https://www.google.com/recaptcha/enterprise.js?render=${recaptchaKey}`;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      }
+
+      appCheck = initializeAppCheck(app, {
+        provider: new ReCaptchaEnterpriseProvider(recaptchaKey),
+        isTokenAutoRefreshEnabled: true
+      });
+      console.log('✅ App Check initialized successfully with reCAPTCHA Enterprise');
+    } else {
+      console.warn('⚠️  reCAPTCHA Enterprise key not found in environment variables');
+    }
+  } catch (error) {
+    console.error('❌ Failed to initialize App Check:', error);
+    console.log('📝 Make sure App Check is properly configured in Firebase Console');
+  }
+}
+
+export { appCheck };
+
+
 // Initialize Firebase services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app, 'us-central1');
+
+// Optional: Disable app verification in dev for phone auth testing with test numbers
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_USE_PHONE_AUTH_TESTING === 'true') {
+  try {
+    // Only use with Firebase Console > Authentication > Phone > "Phone numbers for testing"
+    (auth as any).settings.appVerificationDisabledForTesting = true;
+    console.warn('⚠️  Phone Auth app verification disabled for testing (dev only).');
+  } catch (err) {
+    console.warn('Could not disable app verification for testing:', err);
+  }
+}
 
 // Development emulators (optional - uncomment if using Firebase emulators)
 if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {

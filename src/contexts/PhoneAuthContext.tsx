@@ -2,16 +2,13 @@
 
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { 
-  getAuth, 
-  RecaptchaVerifier, 
   signInWithPhoneNumber,
-  PhoneAuthProvider,
-  signInWithCredential,
-  ConfirmationResult
+  ConfirmationResult,
+  RecaptchaVerifier
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
+import { debugFirebaseConfig } from '@/lib/firebase-debug';
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { getRecaptchaSiteKey, RECAPTCHA_CONFIG } from '@/lib/recaptcha-config';
 
 interface PhoneAuthContextType {
   // State
@@ -21,6 +18,7 @@ interface PhoneAuthContextType {
   isOtpSent: boolean;
   isVerifying: boolean;
   error: string;
+  isTestMode: boolean;
   
   // Actions
   setPhoneNumber: (phone: string) => void;
@@ -28,6 +26,7 @@ interface PhoneAuthContextType {
   verifyOTP: (otp: string, userData?: { name: string; email?: string }) => Promise<boolean>;
   loginWithPhone: (phone: string, password: string) => Promise<boolean>;
   resetState: () => void;
+  toggleTestMode: () => void;
 }
 
 const PhoneAuthContext = createContext<PhoneAuthContextType | undefined>(undefined);
@@ -43,22 +42,52 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState('');
+  const [isTestMode, setIsTestMode] = useState(process.env.NEXT_PUBLIC_USE_PHONE_AUTH_TESTING === 'true');
 
   const sendOTP = async (phone: string): Promise<boolean> => {
     try {
       setIsVerifying(true);
       setError('');
+      
+      // Debug: Log Firebase configuration
+      debugFirebaseConfig();
 
-      // Check rate limiting (basic client-side check)
-      const lastAttempt = localStorage.getItem(`sms_attempt_${phone}`);
-      if (lastAttempt) {
-        const timeDiff = Date.now() - parseInt(lastAttempt);
-        const cooldownMs = 5 * 60 * 1000; // 5 minutes
-        if (timeDiff < cooldownMs) {
-          const remainingMin = Math.ceil((cooldownMs - timeDiff) / 60000);
-          setError(`Please wait ${remainingMin} minute(s) before requesting another code.`);
-          setIsVerifying(false);
-          return false;
+      // Ensure reCAPTCHA Enterprise script is available before creating verifier
+      await new Promise<void>((resolve) => {
+        if (typeof window !== 'undefined' && (window as any).grecaptcha?.enterprise) {
+          console.log('✅ reCAPTCHA Enterprise already loaded');
+          resolve();
+        } else {
+          console.log('⏳ Waiting for reCAPTCHA Enterprise to load...');
+          const checkInterval = setInterval(() => {
+            if ((window as any).grecaptcha?.enterprise) {
+              console.log('✅ reCAPTCHA Enterprise loaded successfully');
+              clearInterval(checkInterval);
+              resolve();
+            }
+          }, 50);
+          // Safety timeout
+          setTimeout(() => {
+            console.warn('⚠️ Timeout waiting for reCAPTCHA Enterprise, proceeding anyway');
+            clearInterval(checkInterval);
+            resolve();
+          }, 3000);
+        }
+      });
+
+      // Skip client cooldown if in testing mode
+      if (!isTestMode) {
+        // Check rate limiting (basic client-side check)
+        const lastAttempt = localStorage.getItem(`sms_attempt_${phone}`);
+        if (lastAttempt) {
+          const timeDiff = Date.now() - parseInt(lastAttempt);
+          const cooldownMs = 5 * 60 * 1000; // 5 minutes
+          if (timeDiff < cooldownMs) {
+            const remainingMin = Math.ceil((cooldownMs - timeDiff) / 60000);
+            setError(`Please wait ${remainingMin} minute(s) before requesting another code.`);
+            setIsVerifying(false);
+            return false;
+          }
         }
       }
 
@@ -78,64 +107,73 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
         }
       }
 
-      // Initialize reCAPTCHA with configured site key
+      // Create reCAPTCHA verifier (App Check will handle the verification)
       if (!window.recaptchaVerifier) {
-        try {
-          // Clear any existing reCAPTCHA first
-          const existingContainer = document.getElementById('recaptcha-container');
-          if (existingContainer) {
-            existingContainer.innerHTML = '';
+        // Clear any existing reCAPTCHA container
+        const container = document.getElementById('recaptcha-container');
+        if (container) {
+          container.innerHTML = '';
+        }
+        
+        // Choose reCAPTCHA size based on testing mode
+        const recaptchaSize = isTestMode ? 'invisible' : 'normal';
+        console.log(`🔧 Creating reCAPTCHA verifier with size: ${recaptchaSize} (Test Mode: ${isTestMode})`);
+        
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: recaptchaSize,
+          callback: () => {
+            console.log('✅ reCAPTCHA verified for phone auth');
+          },
+          'error-callback': (error: unknown) => {
+            console.error('❌ reCAPTCHA error:', error);
+            setError('reCAPTCHA verification failed. Please try again.');
           }
-          
-          window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            size: 'invisible', // Force invisible reCAPTCHA
-            callback: () => {
-              // reCAPTCHA solved successfully
-              console.log('reCAPTCHA Enterprise verified successfully for SMS');
-            },
-            'expired-callback': () => {
-              console.warn('reCAPTCHA expired, requesting new verification');
-              setError('Security verification expired. Please try again.');
-              window.recaptchaVerifier?.clear();
-              window.recaptchaVerifier = null;
-            },
-            'error-callback': (error: any) => {
-              console.error('reCAPTCHA Enterprise error:', error);
-              setError('Security verification failed. Please refresh and try again.');
-              window.recaptchaVerifier?.clear();
-              window.recaptchaVerifier = null;
-            }
-          });
-          
-          // Render the reCAPTCHA
-          await window.recaptchaVerifier.render();
-        } catch (recaptchaError) {
-          console.error('Error initializing reCAPTCHA:', recaptchaError);
-          setError('Failed to initialize reCAPTCHA. Please refresh and try again.');
-          setIsVerifying(false);
-          return false;
+        });
+        
+        // For visible reCAPTCHA, render it immediately
+        if (recaptchaSize === 'normal') {
+          try {
+            await window.recaptchaVerifier.render();
+            console.log('✅ Visible reCAPTCHA rendered successfully');
+          } catch (renderError) {
+            console.error('❌ Failed to render visible reCAPTCHA:', renderError);
+          }
         }
       }
-
-      const appVerifier = window.recaptchaVerifier;
       
-      // Send OTP
-      const confirmationResult = await signInWithPhoneNumber(auth, phone, appVerifier);
+      // Send OTP with the verifier (App Check will handle the actual verification)
+      console.log('📞 Attempting to send SMS to:', phone);
+      console.log('🔐 reCAPTCHA verifier ready:', !!window.recaptchaVerifier);
+      
+      const confirmationResult = await signInWithPhoneNumber(auth, phone, window.recaptchaVerifier);
+      
+      console.log('✅ SMS sent successfully, confirmation result received');
+      console.log('📋 Confirmation result verificationId:', confirmationResult.verificationId ? 'Present' : 'Missing');
       
       setConfirmationResult(confirmationResult);
       setPhoneNumber(phone);
       setIsOtpSent(true);
       setIsVerifying(false);
       
-      // Record attempt timestamp for rate limiting
-      localStorage.setItem(`sms_attempt_${phone}`, Date.now().toString());
+      if (!isTestMode) {
+        // Record attempt timestamp for rate limiting
+        localStorage.setItem(`sms_attempt_${phone}`, Date.now().toString());
+      }
       
       return true;
-    } catch (error: any) {
-      console.error('Error sending OTP:', error);
+    } catch (error: unknown) {
+      console.error('❌ Error sending OTP:', error);
+      
+      // Log detailed error information
+      if (error && typeof error === 'object') {
+        const firebaseError = error as any;
+        console.error('Error code:', firebaseError.code);
+        console.error('Error message:', firebaseError.message);
+        console.error('Error details:', firebaseError);
+      }
       
       // Handle rate limiting
-      if (error.code === 'auth/too-many-requests') {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'auth/too-many-requests') {
         // Record the rate limit timestamp
         localStorage.setItem('firebase_rate_limit', Date.now().toString());
       }
@@ -145,7 +183,11 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
       
       // Reset reCAPTCHA on error
       if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
+        try {
+          window.recaptchaVerifier.clear();
+        } catch (clearError) {
+          console.warn('Could not clear reCAPTCHA verifier:', clearError);
+        }
         window.recaptchaVerifier = null;
       }
       
@@ -196,7 +238,7 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
       setIsVerifying(false);
       resetState();
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error verifying OTP:', error);
       setError(getErrorMessage(error));
       setIsVerifying(false);
@@ -238,12 +280,19 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
       setIsVerifying(false);
       return true;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Phone login error:', error);
       setError('Invalid phone number or password.');
       setIsVerifying(false);
       return false;
     }
+  };
+
+  const toggleTestMode = () => {
+    setIsTestMode(!isTestMode);
+    console.log(`🔄 Test mode toggled to: ${!isTestMode}`);
+    // Reset state when switching modes
+    resetState();
   };
 
   const resetState = () => {
@@ -261,8 +310,13 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
     }
   };
 
-  const getErrorMessage = (error: any): string => {
-    switch (error.code) {
+  const getErrorMessage = (error: unknown): string => {
+    if (!error || typeof error !== 'object' || !('code' in error)) {
+      return 'An error occurred. Please try again.';
+    }
+    
+    const errorCode = (error as { code: string }).code;
+    switch (errorCode) {
       case 'auth/invalid-phone-number':
         return 'Invalid phone number. Please check the format.';
       case 'auth/too-many-requests':
@@ -275,8 +329,14 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
         return 'Phone number is required.';
       case 'auth/quota-exceeded':
         return 'SMS quota exceeded. Please try again later.';
+      case 'auth/invalid-app-credential':
+        return 'Authentication configuration error. Please contact support or try again later.';
+      case 'auth/app-not-authorized':
+        return 'App not authorized for this operation. Please try again.';
+      case 'auth/captcha-check-failed':
+        return 'reCAPTCHA verification failed. Please refresh and try again.';
       default:
-        return error.message || 'An error occurred. Please try again.';
+        return (error as { message?: string }).message || 'An error occurred. Please try again.';
     }
   };
 
@@ -287,11 +347,13 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
     isOtpSent,
     isVerifying,
     error,
+    isTestMode,
     setPhoneNumber,
     sendOTP,
     verifyOTP,
     loginWithPhone,
-    resetState
+    resetState,
+    toggleTestMode
   };
 
   return (

@@ -45,33 +45,29 @@ export default function OTPInput({
           value={value}
           onChange={onChange}
           numInputs={numInputs}
-          separator={<span className="w-2" />}
-          isInputNum
-          isDisabled={isDisabled}
-          hasErrored={hasErrored}
-          placeholder={placeholder}
-          inputStyle={{
-            width: '100%',
-            height: '48px',
-            margin: '0 4px',
-            fontSize: '18px',
-            borderRadius: '12px',
-            border: hasErrored ? '2px solid #ef4444' : '2px solid var(--border)',
-            backgroundColor: 'var(--background)',
-            color: 'var(--foreground)',
-            textAlign: 'center',
-            outline: 'none',
-            transition: 'all 0.2s ease',
-          }}
-          focusStyle={{
-            border: '2px solid var(--primary)',
-            boxShadow: '0 0 0 3px var(--primary)/20',
-          }}
-          containerStyle={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: '8px',
-          }}
+          renderSeparator={() => <span className="w-2" />}
+          inputType="number"
+          shouldAutoFocus
+          renderInput={(props) => (
+            <input
+              {...props}
+              style={{
+                width: '100%',
+                height: '48px',
+                margin: '0 4px',
+                fontSize: '18px',
+                borderRadius: '12px',
+                border: hasErrored ? '2px solid #ef4444' : '2px solid var(--border)',
+                backgroundColor: 'var(--background)',
+                color: 'var(--foreground)',
+                textAlign: 'center',
+                outline: 'none',
+                transition: 'all 0.2s ease',
+              }}
+              disabled={isDisabled}
+              placeholder={placeholder}
+            />
+          )}
         />
       </div>
       
