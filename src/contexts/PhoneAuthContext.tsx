@@ -11,6 +11,7 @@ import {
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { getRecaptchaSiteKey, RECAPTCHA_CONFIG } from '@/lib/recaptcha-config';
 
 interface PhoneAuthContextType {
   // State
@@ -47,15 +48,36 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
       setIsVerifying(true);
       setError('');
 
-      // Initialize reCAPTCHA
+      // Check rate limiting (basic client-side check)
+      const lastAttempt = localStorage.getItem(`sms_attempt_${phone}`);
+      if (lastAttempt) {
+        const timeDiff = Date.now() - parseInt(lastAttempt);
+        const cooldownMs = 5 * 60 * 1000; // 5 minutes
+        if (timeDiff < cooldownMs) {
+          const remainingMin = Math.ceil((cooldownMs - timeDiff) / 60000);
+          setError(`Please wait ${remainingMin} minute(s) before requesting another code.`);
+          setIsVerifying(false);
+          return false;
+        }
+      }
+
+      // Initialize reCAPTCHA with configured site key
       if (!window.recaptchaVerifier) {
         window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
+          size: RECAPTCHA_CONFIG.size,
           callback: () => {
-            // reCAPTCHA solved
+            // reCAPTCHA solved successfully
+            console.log('reCAPTCHA verified successfully for SMS');
           },
           'expired-callback': () => {
             setError('reCAPTCHA expired. Please try again.');
+            window.recaptchaVerifier?.clear();
+            window.recaptchaVerifier = null;
+          },
+          'error-callback': () => {
+            setError('reCAPTCHA verification failed. Please try again.');
+            window.recaptchaVerifier?.clear();
+            window.recaptchaVerifier = null;
           }
         });
       }
@@ -69,6 +91,9 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
       setPhoneNumber(phone);
       setIsOtpSent(true);
       setIsVerifying(false);
+      
+      // Record attempt timestamp for rate limiting
+      localStorage.setItem(`sms_attempt_${phone}`, Date.now().toString());
       
       return true;
     } catch (error: any) {

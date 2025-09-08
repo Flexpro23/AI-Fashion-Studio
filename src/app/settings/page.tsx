@@ -3,6 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function SettingsPage() {
   const { user, userData, logout } = useAuth();
@@ -149,50 +150,41 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Quick Actions */}
+          {/* Quick Actions - Compact */}
           <div className="card-step">
-            <h2 className="text-lg sm:text-xl font-semibold text-[var(--foreground)] mb-3 sm:mb-4 flex items-center p-2 sm:p-0">
-              <span className="mr-2 text-xl sm:text-2xl">🎯</span>
+            <h2 className="text-base sm:text-lg font-semibold text-[var(--foreground)] mb-3 flex items-center">
+              <span className="mr-2 text-lg">🎯</span>
               Quick Actions
             </h2>
             
-            <div className="space-y-2 sm:space-y-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               {/* View Plans */}
               <button
                 onClick={() => router.push('/pricing')}
-                className="w-full flex items-center justify-between p-3 sm:p-4 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/20 hover:bg-[var(--primary)]/20 transition-all duration-200"
+                className="flex flex-col items-center p-2 sm:p-3 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/20 hover:bg-[var(--primary)]/20 transition-all duration-200"
               >
-                <div className="flex items-center space-x-2 sm:space-x-3">
-                  <span className="text-base sm:text-xl">💎</span>
-                  <span className="font-medium text-[var(--foreground)] text-sm sm:text-base">View Plans & Pricing</span>
-                </div>
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <span className="text-lg mb-1">💎</span>
+                <span className="text-xs sm:text-sm font-medium text-[var(--foreground)] text-center">Plans & Pricing</span>
               </button>
 
               {/* Contact Support */}
               <button
                 onClick={() => router.push('/contact')}
-                className="w-full flex items-center justify-between p-3 sm:p-4 rounded-xl bg-[var(--muted)] border border-[var(--border)] hover:bg-[var(--hover)] transition-all duration-200"
+                className="flex flex-col items-center p-2 sm:p-3 rounded-lg bg-[var(--muted)] border border-[var(--border)] hover:bg-[var(--hover)] transition-all duration-200"
               >
-                <div className="flex items-center space-x-2 sm:space-x-3">
-                  <span className="text-base sm:text-xl">📞</span>
-                  <span className="font-medium text-[var(--foreground)] text-sm sm:text-base">Contact Support</span>
-                </div>
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--muted-foreground)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <span className="text-lg mb-1">📞</span>
+                <span className="text-xs sm:text-sm font-medium text-[var(--foreground)] text-center">Contact Support</span>
               </button>
+            </div>
 
               {/* Generation Status Alert */}
               {userData.remainingGenerations <= 0 && (
-                <div className="p-4 rounded-xl bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-2xl">⚠️</span>
+                <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg">⚠️</span>
                     <div>
-                      <p className="font-semibold text-red-600 dark:text-red-400">No Generations Remaining</p>
-                      <p className="text-sm text-red-500 dark:text-red-300">Contact support to purchase more generations</p>
+                      <p className="text-sm font-semibold text-red-600 dark:text-red-400">No Generations Remaining</p>
+                      <p className="text-xs text-red-500 dark:text-red-300">Contact support to purchase more</p>
                     </div>
                   </div>
                 </div>
@@ -200,21 +192,31 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Logout Section */}
+          {/* Language Settings */}
           <div className="card-step">
-            <h2 className="text-xl font-semibold text-[var(--foreground)] mb-4 flex items-center">
-              <span className="mr-2">🚪</span>
+            <h2 className="text-base sm:text-lg font-semibold text-[var(--foreground)] mb-3 flex items-center">
+              <span className="mr-2 text-lg">🌐</span>
+              Language Settings
+            </h2>
+            
+            <LanguageSwitcher />
+          </div>
+
+          {/* Account Management - Moved to End */}
+          <div className="card-step">
+            <h2 className="text-base sm:text-lg font-semibold text-[var(--foreground)] mb-3 flex items-center">
+              <span className="mr-2 text-lg">🚪</span>
               Account Management
             </h2>
             
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="w-full flex items-center justify-center p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30 transition-all duration-200"
+              className="w-full flex items-center justify-center p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30 transition-all duration-200"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-              Sign Out
+              <span className="text-sm font-medium">Sign Out</span>
             </button>
           </div>
         </div>
