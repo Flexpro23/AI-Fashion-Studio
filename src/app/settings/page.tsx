@@ -126,9 +126,9 @@ export default function SettingsPage() {
                   key={itemIndex} 
                   className={`flex items-center justify-between p-3 sm:p-4 rounded-xl border transition-all duration-200 ${
                     item.highlight === 'success' 
-                      ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
+                      ? 'bg-green-50 border-green-200 dark:bg-green-900 dark:bg-opacity-20 dark:border-green-800'
                       : item.highlight === 'warning'
-                      ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
+                      ? 'bg-red-50 border-red-200 dark:bg-red-900 dark:bg-opacity-20 dark:border-red-800'
                       : 'bg-[var(--muted)] border-[var(--border)]'
                   }`}
                 >
@@ -161,7 +161,7 @@ export default function SettingsPage() {
               {/* View Plans */}
               <button
                 onClick={() => router.push('/pricing')}
-                className="flex flex-col items-center p-2 sm:p-3 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/20 hover:bg-[var(--primary)]/20 transition-all duration-200"
+                className="flex flex-col items-center p-2 sm:p-3 rounded-lg bg-[var(--primary)] bg-opacity-10 border border-[var(--primary)] border-opacity-20 hover:bg-opacity-20 transition-all duration-200"
               >
                 <span className="text-lg mb-1">💎</span>
                 <span className="text-xs sm:text-sm font-medium text-[var(--foreground)] text-center">Plans & Pricing</span>
@@ -177,19 +177,18 @@ export default function SettingsPage() {
               </button>
             </div>
 
-              {/* Generation Status Alert */}
-              {userData.remainingGenerations <= 0 && (
-                <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-lg">⚠️</span>
-                    <div>
-                      <p className="text-sm font-semibold text-red-600 dark:text-red-400">No Generations Remaining</p>
-                      <p className="text-xs text-red-500 dark:text-red-300">Contact support to purchase more</p>
-                    </div>
+            {/* Generation Status Alert */}
+            {userData.remainingGenerations <= 0 && (
+              <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200 dark:bg-red-900 dark:bg-opacity-20 dark:border-red-800">
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg">⚠️</span>
+                  <div>
+                    <p className="text-sm font-semibold text-red-600 dark:text-red-400">No Generations Remaining</p>
+                    <p className="text-xs text-red-500 dark:text-red-300">Contact support to purchase more</p>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Language Settings */}
@@ -211,7 +210,7 @@ export default function SettingsPage() {
             
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="w-full flex items-center justify-center p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30 transition-all duration-200"
+              className="w-full flex items-center justify-center p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 dark:bg-red-900 dark:bg-opacity-20 dark:border-red-800 dark:text-red-400 dark:hover:bg-opacity-30 transition-all duration-200"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -223,7 +222,7 @@ export default function SettingsPage() {
 
         {/* Logout Confirmation Modal */}
         {showLogoutConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-[var(--background)] rounded-2xl p-6 max-w-sm w-full">
               <h3 className="text-lg font-semibold text-[var(--foreground)] mb-2">Confirm Sign Out</h3>
               <p className="text-[var(--muted-foreground)] mb-6">
