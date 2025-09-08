@@ -10,7 +10,7 @@ import {
   ConfirmationResult
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { getRecaptchaSiteKey, RECAPTCHA_CONFIG } from '@/lib/recaptcha-config';
 
 interface PhoneAuthContextType {
@@ -26,6 +26,7 @@ interface PhoneAuthContextType {
   setPhoneNumber: (phone: string) => void;
   sendOTP: (phone: string) => Promise<boolean>;
   verifyOTP: (otp: string, userData?: { name: string; email?: string }) => Promise<boolean>;
+  loginWithPhone: (phone: string, password: string) => Promise<boolean>;
   resetState: () => void;
 }
 
@@ -63,23 +64,34 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
 
       // Initialize reCAPTCHA with configured site key
       if (!window.recaptchaVerifier) {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: RECAPTCHA_CONFIG.size,
-          callback: () => {
-            // reCAPTCHA solved successfully
-            console.log('reCAPTCHA verified successfully for SMS');
-          },
-          'expired-callback': () => {
-            setError('reCAPTCHA expired. Please try again.');
-            window.recaptchaVerifier?.clear();
-            window.recaptchaVerifier = null;
-          },
-          'error-callback': () => {
-            setError('reCAPTCHA verification failed. Please try again.');
-            window.recaptchaVerifier?.clear();
-            window.recaptchaVerifier = null;
-          }
-        });
+        try {
+          window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            size: 'invisible', // Force invisible reCAPTCHA
+            callback: () => {
+              // reCAPTCHA solved successfully
+              console.log('reCAPTCHA verified successfully for SMS');
+            },
+            'expired-callback': () => {
+              setError('reCAPTCHA expired. Please try again.');
+              window.recaptchaVerifier?.clear();
+              window.recaptchaVerifier = null;
+            },
+            'error-callback': (error: any) => {
+              console.error('reCAPTCHA error:', error);
+              setError('reCAPTCHA verification failed. Please try again.');
+              window.recaptchaVerifier?.clear();
+              window.recaptchaVerifier = null;
+            }
+          });
+          
+          // Render the reCAPTCHA
+          await window.recaptchaVerifier.render();
+        } catch (recaptchaError) {
+          console.error('Error initializing reCAPTCHA:', recaptchaError);
+          setError('Failed to initialize reCAPTCHA. Please refresh and try again.');
+          setIsVerifying(false);
+          return false;
+        }
       }
 
       const appVerifier = window.recaptchaVerifier;
@@ -162,6 +174,48 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
     }
   };
 
+  // Function to login with phone and password (for existing users)
+  const loginWithPhone = async (phone: string, password: string): Promise<boolean> => {
+    try {
+      setIsVerifying(true);
+      setError('');
+
+      // For existing users, we need to use email/password auth but find the user by phone
+      // First, try to find the user document by phone number
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('phone', '==', phone));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        setError('No account found with this phone number.');
+        setIsVerifying(false);
+        return false;
+      }
+
+      const userDoc = querySnapshot.docs[0];
+      const userData = userDoc.data();
+      
+      if (!userData.email) {
+        setError('This account was not set up with email authentication.');
+        setIsVerifying(false);
+        return false;
+      }
+
+      // Use email/password auth for existing users
+      const { signInWithEmailAndPassword } = await import('firebase/auth');
+      await signInWithEmailAndPassword(auth, userData.email, password);
+      
+      setIsVerifying(false);
+      return true;
+
+    } catch (error: any) {
+      console.error('Phone login error:', error);
+      setError('Invalid phone number or password.');
+      setIsVerifying(false);
+      return false;
+    }
+  };
+
   const resetState = () => {
     setPhoneNumber('');
     setVerificationId('');
@@ -206,6 +260,7 @@ export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderPro
     setPhoneNumber,
     sendOTP,
     verifyOTP,
+    loginWithPhone,
     resetState
   };
 

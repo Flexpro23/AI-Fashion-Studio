@@ -20,7 +20,7 @@ interface AuthContextType {
   user: User | null;
   userData: UserData | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  loginWithEmailPassword: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   decrementGenerations: () => Promise<void>;
   refreshUserData: () => Promise<void>;
@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const loginWithEmailPassword = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
   };
 
@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     userData,
     loading,
-    login,
+    loginWithEmailPassword,
     logout,
     decrementGenerations,
     refreshUserData,

@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCustomPhoneAuth } from '@/contexts/PhoneAuthContext';
-import PhoneInput from '@/components/PhoneInput';
 
 // Fashion icon component
 const FashionIcon = ({ className }: { className?: string }) => (
@@ -27,13 +25,12 @@ const FashionIcon = ({ className }: { className?: string }) => (
   </div>
 );
 
-export default function LoginPage() {
-  const [phoneNumber, setPhoneNumber] = useState('');
+export default function EmailLoginPage() {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { loginWithEmailPassword } = useAuth();
-  const { loginWithPhone } = useCustomPhoneAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,18 +39,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (!phoneNumber || !password) {
-        setError('Please enter both phone number and password.');
-        return;
-      }
-
-      // Try to login with phone and password
-      const success = await loginWithPhone(phoneNumber, password);
-      if (success) {
-        router.push('/studio');
-      } else {
-        setError('Login failed. Please check your credentials.');
-      }
+      await loginWithEmailPassword(email, password);
+      router.push('/studio');
     } catch (error: unknown) {
       setError('Failed to log in. Please check your credentials.');
       console.error('Login error:', error);
@@ -80,22 +67,27 @@ export default function LoginPage() {
           
           <div className="text-center">
             <h2 className="text-3xl font-bold text-[var(--foreground)] mb-2">AI Fashion Studio</h2>
-            <p className="text-[var(--muted-foreground)] text-sm">Elegance meets innovation</p>
+            <p className="text-[var(--muted-foreground)] text-sm">Continue with Email</p>
           </div>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
-            {/* Phone Number Input */}
+            {/* Email Input */}
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                PHONE NUMBER
+              <label htmlFor="email" className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                EMAIL ADDRESS
               </label>
-              <PhoneInput
-                value={phoneNumber}
-                onChange={setPhoneNumber}
-                placeholder="Enter your phone number"
-                className="w-full"
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                className="appearance-none relative block w-full px-4 py-3 border border-[var(--border)] placeholder-[var(--muted-foreground)] text-[var(--foreground)] bg-[var(--background)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent transition-all duration-200"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
@@ -137,7 +129,7 @@ export default function LoginPage() {
                 </div>
               ) : (
                 <>
-                  <span className="mr-2">📱</span>
+                  <span className="mr-2">📧</span>
                   Enter Studio
                 </>
               )}
@@ -145,14 +137,12 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center">
-            <div className="text-sm text-[var(--muted-foreground)] mb-4">or</div>
-            
             <button
               type="button"
-              onClick={() => router.push('/login-email')}
-              className="w-full flex justify-center py-2.5 px-4 border border-[var(--border)] text-sm font-medium rounded-xl text-[var(--foreground)] bg-[var(--background)] hover:bg-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--ring)] transition-all duration-200"
+              onClick={() => router.push('/login')}
+              className="text-sm font-medium text-[var(--primary)] hover:text-[var(--primary-alt)] transition-colors duration-200"
             >
-              📧 Continue with Email
+              ← Back to Phone Login
             </button>
           </div>
 
@@ -161,7 +151,7 @@ export default function LoginPage() {
               Don't have an account?{' '}
               <button
                 type="button"
-                onClick={() => router.push('/signup-phone')}
+                onClick={() => router.push('/signup')}
                 className="font-medium text-[var(--primary)] hover:text-[var(--primary-alt)] transition-colors duration-200"
               >
                 Create Account & Get 2 Free Generations
@@ -169,9 +159,6 @@ export default function LoginPage() {
             </p>
           </div>
         </form>
-
-        {/* Invisible reCAPTCHA container */}
-        <div id="recaptcha-container"></div>
 
         {/* Footer */}
         <div className="text-center mt-8">
