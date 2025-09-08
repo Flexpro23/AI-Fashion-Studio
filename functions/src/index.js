@@ -64,19 +64,41 @@ exports.generateImageV2 = functions.https.onCall(async (data, context) => {
   console.log("🚀 === GENERATEIMAGEV2 FUNCTION STARTED ===");
   console.log("⏰ Timestamp:", new Date().toISOString());
   console.log("Function called with data keys:", Object.keys(data || {}));
+  console.log("Full context:", JSON.stringify(context, null, 2));
   console.log("Auth context:", context?.auth?.uid ? "Authenticated" : "Not authenticated");
 
   try {
+    // Handle different Firebase Functions data structures
+    let actualData = data;
+    let authContext = context;
+    
+    // Check if data has the new structure with nested data
+    if (data && data.data && typeof data.data === 'object') {
+      actualData = data.data;
+      console.log("📦 Using nested data structure, keys:", Object.keys(actualData || {}));
+    }
+    
+    // Check if auth is in data instead of context (newer Firebase Functions structure)
+    if (data && data.auth && !context?.auth) {
+      authContext = { auth: data.auth };
+      console.log("🔄 Auth found in data instead of context");
+    }
+
+    console.log("🔐 Final auth context:", authContext?.auth?.uid ? "Authenticated" : "Not authenticated");
+    console.log("🔐 Auth UID:", authContext?.auth?.uid);
+
     // CRITICAL: Check if user is authenticated
-    if (!context || !context.auth || !context.auth.uid) {
+    if (!authContext || !authContext.auth || !authContext.auth.uid) {
       console.error("❌ AUTHENTICATION FAILED: No auth context provided");
+      console.error("❌ Context:", context);
+      console.error("❌ Data:", data);
       throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
     }
 
-    console.log("✅ User authenticated:", context.auth.uid);
+    console.log("✅ User authenticated:", authContext.auth.uid);
 
-    const { modelImageUrl, garmentImageUrl } = data;
-    const userId = context.auth.uid;
+    const { modelImageUrl, garmentImageUrl } = actualData;
+    const userId = authContext.auth.uid;
 
     console.log("👤 User ID:", userId);
     console.log("📸 Model Image URL:", modelImageUrl);

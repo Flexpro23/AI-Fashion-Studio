@@ -168,7 +168,8 @@ export default function StepByStepStudio({ onComplete }: StepByStepStudioProps) 
 
     } catch (error: unknown) {
       console.error('Generation error:', error);
-      setError(`Failed to generate image using ${method}. Please try again.`);
+      // Show user-friendly error message regardless of the specific error
+      setError('Something went wrong. Please try again.');
       setCurrentStep('choose-method');
     } finally {
       setIsGenerating(false);
