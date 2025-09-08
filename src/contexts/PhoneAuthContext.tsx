@@ -30,11 +30,11 @@ interface PhoneAuthContextType {
 
 const PhoneAuthContext = createContext<PhoneAuthContextType | undefined>(undefined);
 
-interface PhoneAuthProviderProps {
+interface CustomPhoneAuthProviderProps {
   children: ReactNode;
 }
 
-export function PhoneAuthProvider({ children }: PhoneAuthProviderProps) {
+export function CustomPhoneAuthProvider({ children }: CustomPhoneAuthProviderProps) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationId, setVerificationId] = useState('');
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
